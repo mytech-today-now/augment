@@ -73,6 +73,20 @@ function resolveMirrorTools(
   return [];
 }
 
+function writeLinkedModulesConfig(
+  configPath: string,
+  config: any,
+  moduleFullName: string,
+  action: 'link' | 'update'
+): void {
+  try {
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+  } catch (error) {
+    const details = error instanceof Error ? error.message : String(error);
+    throw new Error(`Unable to ${action} module ${moduleFullName}: ${details}`);
+  }
+}
+
 export async function linkCommand(moduleName: string, options: LinkOptions): Promise<void> {
   try {
     console.log(chalk.blue(`Linking module: ${moduleName}`));
@@ -86,6 +100,10 @@ export async function linkCommand(moduleName: string, options: LinkOptions): Pro
     }
 
     const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    if (!Array.isArray(config.modules)) {
+      throw new Error('Invalid extensions config: expected modules array in .augment/extensions.json');
+    }
+    const modules = config.modules;
 
     const module = findModule(moduleName);
 
@@ -94,21 +112,44 @@ export async function linkCommand(moduleName: string, options: LinkOptions): Pro
       process.exit(1);
     }
 
-    const existingIndex = config.modules.findIndex((m: any) =>
+    const requestedVersion = options.version ?? module.metadata.version;
+    const hasVersionOverride = options.version !== undefined;
+    const existingIndex = modules.findIndex((m: any) =>
       m.name === module.fullName || m.name === moduleName
     );
 
     if (existingIndex < 0) {
-      config.modules.push({
+      modules.push({
         name: module.fullName,
-        version: options.version || module.metadata.version,
+        version: requestedVersion,
         type: module.metadata.type,
         description: module.metadata.description,
       });
-      fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-      console.log(
-        chalk.green(`✓ Linked ${module.fullName} (v${options.version || module.metadata.version})`)
-      );
+      writeLinkedModulesConfig(configPath, config, module.fullName, 'link');
+      console.log(chalk.green(`✓ Linked ${module.fullName} (v${requestedVersion})`));
+    } else if (hasVersionOverride) {
+      const existingModule = modules[existingIndex];
+      if (!existingModule || typeof existingModule !== 'object' || Array.isArray(existingModule)) {
+        throw new Error(
+          `Unable to update module ${module.fullName}: invalid linked module record in extensions.json`
+        );
+      }
+
+      const currentVersion =
+        typeof existingModule.version === 'string' ? existingModule.version : undefined;
+      modules[existingIndex] = {
+        ...existingModule,
+        version: requestedVersion,
+      };
+      writeLinkedModulesConfig(configPath, config, module.fullName, 'update');
+
+      if (currentVersion && currentVersion !== requestedVersion) {
+        console.log(
+          chalk.green(`✓ Updated ${module.fullName} (v${currentVersion} → v${requestedVersion})`)
+        );
+      } else {
+        console.log(chalk.green(`✓ Updated ${module.fullName} (v${requestedVersion})`));
+      }
     } else {
       console.log(chalk.yellow(`Module already linked: ${module.fullName}`));
     }
