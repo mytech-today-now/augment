@@ -140,7 +140,7 @@ export async function showCommand(moduleName: string, options: ShowOptions): Pro
  * Supports module overview, content viewing, and file inspection
  */
 export async function showModuleCommand(
-  moduleName: string,
+  moduleName: string | undefined,
   filePath: string | undefined,
   options: ShowModuleOptions
 ): Promise<void> {

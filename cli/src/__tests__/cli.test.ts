@@ -161,93 +161,9 @@ describe('CLI Command Parsing', () => {
   });
 
   describe('show command', () => {
-    it('should parse show command with module argument', () => {
-      const mockAction = jest.fn();
+    const registerShowCommand = (mockAction: jest.Mock) => {
       program
-        .command('show <module>')
-        .option('--json', 'Output as JSON')
-        .action(mockAction);
-
-      program.parse(['node', 'augx', 'show', 'typescript-standards']);
-
-      expect(mockAction).toHaveBeenCalled();
-      expect(mockAction.mock.calls[0][0]).toBe('typescript-standards');
-    });
-
-    it('should parse show command with --json flag', () => {
-      const mockAction = jest.fn();
-      program
-        .command('show <module>')
-        .option('--json', 'Output as JSON')
-        .action(mockAction);
-
-      program.parse(['node', 'augx', 'show', 'typescript-standards', '--json']);
-
-      expect(mockAction).toHaveBeenCalled();
-      expect(mockAction.mock.calls[0][0]).toBe('typescript-standards');
-      expect(mockAction.mock.calls[0][1].json).toBe(true);
-    });
-  });
-
-  describe('show linked command', () => {
-    it('should parse show linked command', () => {
-      const mockAction = jest.fn();
-      program
-        .command('show linked')
-        .option('--json', 'Output as JSON')
-        .action(mockAction);
-
-      program.parse(['node', 'augx', 'show', 'linked']);
-
-      expect(mockAction).toHaveBeenCalled();
-    });
-
-    it('should parse show linked command with --json flag', () => {
-      const mockAction = jest.fn();
-      program
-        .command('show linked')
-        .option('--json', 'Output as JSON')
-        .action(mockAction);
-
-      program.parse(['node', 'augx', 'show', 'linked', '--json']);
-
-      expect(mockAction).toHaveBeenCalled();
-      expect(mockAction.mock.calls[0][0].json).toBe(true);
-    });
-  });
-
-  describe('show all command', () => {
-    it('should parse show all command', () => {
-      const mockAction = jest.fn();
-      program
-        .command('show all')
-        .option('--json', 'Output as JSON')
-        .action(mockAction);
-
-      program.parse(['node', 'augx', 'show', 'all']);
-
-      expect(mockAction).toHaveBeenCalled();
-    });
-
-    it('should parse show all command with --json flag', () => {
-      const mockAction = jest.fn();
-      program
-        .command('show all')
-        .option('--json', 'Output as JSON')
-        .action(mockAction);
-
-      program.parse(['node', 'augx', 'show', 'all', '--json']);
-
-      expect(mockAction).toHaveBeenCalled();
-      expect(mockAction.mock.calls[0][0].json).toBe(true);
-    });
-  });
-
-  describe('show module command', () => {
-    it('should parse show module command with required argument', () => {
-      const mockAction = jest.fn();
-      program
-        .command('show module <module-name> [file-path]')
+        .command('show <command> [module-name] [file-path]')
         .option('--json', 'Output as JSON')
         .option('--content', 'Display aggregated content')
         .option('--format <format>', 'Output format', 'text')
@@ -255,96 +171,107 @@ describe('CLI Command Parsing', () => {
         .option('--filter <pattern>', 'Filter files by pattern')
         .option('--search <term>', 'Search within content')
         .action(mockAction);
+    };
+
+    it('should parse show module command with required argument', () => {
+      const mockAction = jest.fn();
+      registerShowCommand(mockAction);
 
       program.parse(['node', 'augx', 'show', 'module', 'php-standards']);
 
-      // Commander passes: ('module', 'php-standards', undefined, options, command) for 'show module <module-name> [file-path]'
       expect(mockAction).toHaveBeenCalled();
+      expect(mockAction.mock.calls[0][0]).toBe('module');
       expect(mockAction.mock.calls[0][1]).toBe('php-standards');
+      expect(mockAction.mock.calls[0][2]).toBeUndefined();
     });
 
     it('should parse show module command with optional file path', () => {
       const mockAction = jest.fn();
-      program
-        .command('show module <module-name> [file-path]')
-        .action(mockAction);
+      registerShowCommand(mockAction);
 
       program.parse(['node', 'augx', 'show', 'module', 'php-standards', 'rules/psr.md']);
 
-      // Commander passes: ('module', 'php-standards', 'rules/psr.md', options, command)
       expect(mockAction).toHaveBeenCalled();
+      expect(mockAction.mock.calls[0][0]).toBe('module');
       expect(mockAction.mock.calls[0][1]).toBe('php-standards');
       expect(mockAction.mock.calls[0][2]).toBe('rules/psr.md');
     });
 
     it('should parse show module command with --content flag', () => {
       const mockAction = jest.fn();
-      program
-        .command('show module <module-name> [file-path]')
-        .option('--content', 'Display aggregated content')
-        .action(mockAction);
+      registerShowCommand(mockAction);
 
       program.parse(['node', 'augx', 'show', 'module', 'php-standards', '--content']);
 
       expect(mockAction).toHaveBeenCalled();
+      expect(mockAction.mock.calls[0][0]).toBe('module');
       expect(mockAction.mock.calls[0][1]).toBe('php-standards');
       expect(mockAction.mock.calls[0][3].content).toBe(true);
     });
 
     it('should parse show module command with --format option', () => {
       const mockAction = jest.fn();
-      program
-        .command('show module <module-name> [file-path]')
-        .option('--format <format>', 'Output format', 'text')
-        .action(mockAction);
+      registerShowCommand(mockAction);
 
       program.parse(['node', 'augx', 'show', 'module', 'php-standards', '--format', 'json']);
 
       expect(mockAction).toHaveBeenCalled();
+      expect(mockAction.mock.calls[0][0]).toBe('module');
       expect(mockAction.mock.calls[0][1]).toBe('php-standards');
       expect(mockAction.mock.calls[0][3].format).toBe('json');
     });
 
     it('should parse show module command with --depth option', () => {
       const mockAction = jest.fn();
-      program
-        .command('show module <module-name> [file-path]')
-        .option('--depth <number>', 'Recursion depth', '1')
-        .action(mockAction);
+      registerShowCommand(mockAction);
 
       program.parse(['node', 'augx', 'show', 'module', 'php-standards', '--depth', '3']);
 
       expect(mockAction).toHaveBeenCalled();
+      expect(mockAction.mock.calls[0][0]).toBe('module');
       expect(mockAction.mock.calls[0][1]).toBe('php-standards');
       expect(mockAction.mock.calls[0][3].depth).toBe('3');
     });
 
     it('should parse show module command with --filter option', () => {
       const mockAction = jest.fn();
-      program
-        .command('show module <module-name> [file-path]')
-        .option('--filter <pattern>', 'Filter files by pattern')
-        .action(mockAction);
+      registerShowCommand(mockAction);
 
       program.parse(['node', 'augx', 'show', 'module', 'php-standards', '--filter', '*.md']);
 
       expect(mockAction).toHaveBeenCalled();
+      expect(mockAction.mock.calls[0][0]).toBe('module');
       expect(mockAction.mock.calls[0][1]).toBe('php-standards');
       expect(mockAction.mock.calls[0][3].filter).toBe('*.md');
     });
 
     it('should parse show module command with --search option', () => {
       const mockAction = jest.fn();
-      program
-        .command('show module <module-name> [file-path]')
-        .option('--search <term>', 'Search within content')
-        .action(mockAction);
+      registerShowCommand(mockAction);
 
       program.parse(['node', 'augx', 'show', 'module', 'php-standards', '--search', 'PSR-12']);
 
       expect(mockAction).toHaveBeenCalled();
+      expect(mockAction.mock.calls[0][0]).toBe('module');
       expect(mockAction.mock.calls[0][1]).toBe('php-standards');
       expect(mockAction.mock.calls[0][3].search).toBe('PSR-12');
+    });
+
+    it.each([
+      ['completed'],
+      ['linked'],
+      ['all']
+    ])('should parse show %s shortcut command', (shortcut) => {
+      const mockAction = jest.fn();
+      registerShowCommand(mockAction);
+
+      program.parse(['node', 'augx', 'show', shortcut, '--json']);
+
+      expect(mockAction).toHaveBeenCalled();
+      expect(mockAction.mock.calls[0][0]).toBe(shortcut);
+      expect(mockAction.mock.calls[0][1]).toBeUndefined();
+      expect(mockAction.mock.calls[0][2]).toBeUndefined();
+      expect(mockAction.mock.calls[0][3].json).toBe(true);
     });
   });
 

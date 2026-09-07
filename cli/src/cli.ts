@@ -151,10 +151,10 @@ program
   .option('--versions', 'Show available versions for each module')
   .action(listCommand);
 
-// Generic show command (register FIRST as the default)
+// Show dispatcher for module inspection and legacy shortcuts
 program
-  .command('show <module> [file-path]')
-  .description('Display detailed information about a module (use "completed" to show Beads completed tasks, "linked" for linked modules, "all" for all modules)')
+  .command('show <command> [module-name] [file-path]')
+  .description('Display module information with "show module <module-name> [file-path]" or the "completed", "linked", and "all" shortcuts')
   .option('--json', 'Output as JSON')
   .option('--content', 'Display aggregated content from all module files')
   .option('--format <format>', 'Output format: json, markdown, text', 'text')
@@ -179,28 +179,34 @@ program
   .option('--order <order>', 'Sort order: asc, desc (default: desc)')
   .option('--verbose', 'Show detailed information for completed tasks')
   .option('--quiet', 'Only output task IDs (one per line)')
-  .action((moduleName: string, filePath: string | undefined, options: any) => {
+  .action((command: string, moduleName: string | undefined, filePath: string | undefined, options: any) => {
     // Handle special subcommands
-    if (moduleName === 'completed') {
+    if (command === 'completed') {
       showCompletedCommand(options);
       return;
     }
-    if (moduleName === 'linked') {
+    if (command === 'linked') {
       showLinkedCommand(options);
       return;
     }
-    if (moduleName === 'all') {
+    if (command === 'all') {
       showAllCommand(options);
       return;
     }
 
-    // If file-path is provided, use showModuleCommand for detailed inspection
-    if (filePath) {
+    if (command === 'module') {
       showModuleCommand(moduleName, filePath, options);
-    } else {
-      // Otherwise use the basic showCommand
-      showCommand(moduleName, options);
+      return;
     }
+
+    // Preserve the legacy `augx show <module>` fallback for existing workflows.
+    if (moduleName) {
+      showModuleCommand(command, moduleName, options);
+      return;
+    }
+
+    // Otherwise use the basic showCommand.
+    showCommand(command, options);
   });
 
 program
