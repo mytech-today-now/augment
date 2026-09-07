@@ -470,3 +470,28 @@ When reading an exported file in any of the four target tools:
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
 
+## Version Synchronization
+
+The root `VERSION` file is the single source of truth for the workspace version.
+
+- After editing `VERSION`, run `pnpm version:sync`.
+- Use `pnpm version:sync:dry-run` to preview changes.
+- Use `pnpm version:sync:force` in non-interactive contexts.
+- `VERSIONING.md` defines the SemVer rules and supported rewrite targets.
+
+## YAGNI
+
+Prefer the smallest change that satisfies the current task. Add abstractions only when there is a clear current use case or when the cost of changing later is high.
+
+## Working Rules
+
+- Inspect the repository before editing.
+- Reuse existing scripts, utilities, fixtures, and test harnesses.
+- Keep changes focused and avoid unrelated edits.
+- Avoid new dependencies unless the task requires them.
+- Prefer behavior-based validation over compile-only checks.
+- Run the smallest relevant tests first, then broader checks when they are useful.
+- Never claim completion if the required validation was skipped or failed.
+- Record skipped checks and any remaining risk.
+- Use `test-artifacts/` or `test-results/` for local failure artifacts when you need them.
+
