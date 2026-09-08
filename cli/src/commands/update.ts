@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
 import * as semver from 'semver';
-import { findModule } from '../utils/module-system';
+import { compareSemanticVersions, findModule } from '../utils/module-system';
 
 interface UpdateOptions {
   module?: string;
@@ -172,13 +172,15 @@ async function updateModule(linkedModule: LinkedModule, config: any): Promise<'u
     const latestVersion = moduleData.version;
     const currentVersion = linkedModule.version;
 
-    if (latestVersion === currentVersion) {
+    const comparison = compareSemanticVersions(latestVersion, currentVersion);
+
+    if (comparison === 0) {
       console.log(chalk.gray(`○ ${linkedModule.name}: Already up to date (v${currentVersion})`));
       return 'up-to-date';
     }
 
     // Check if it's a newer version
-    if (compareVersions(latestVersion, currentVersion) > 0) {
+    if (comparison > 0) {
       // Update in config
       const moduleIndex = config.modules.findIndex((m: LinkedModule) => m.name === linkedModule.name);
       if (moduleIndex >= 0) {
@@ -197,20 +199,5 @@ async function updateModule(linkedModule: LinkedModule, config: any): Promise<'u
     console.log(chalk.red(`✗ ${linkedModule.name}: Error updating - ${error}`));
     return 'error';
   }
-}
-
-function compareVersions(v1: string, v2: string): number {
-  const parts1 = v1.split('.').map(Number);
-  const parts2 = v2.split('.').map(Number);
-
-  for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
-    const part1 = parts1[i] || 0;
-    const part2 = parts2[i] || 0;
-
-    if (part1 > part2) return 1;
-    if (part1 < part2) return -1;
-  }
-
-  return 0;
 }
 

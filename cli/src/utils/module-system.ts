@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import * as semver from 'semver';
 
 /**
  * Module metadata interface
@@ -159,34 +160,11 @@ export function parseSemanticVersion(version: string): SemanticVersion | null {
  * Returns: -1 if v1 < v2, 0 if v1 === v2, 1 if v1 > v2
  */
 export function compareSemanticVersions(v1: string, v2: string): number {
-  const parsed1 = parseSemanticVersion(v1);
-  const parsed2 = parseSemanticVersion(v2);
-
-  if (!parsed1 || !parsed2) {
+  if (!isValidSemanticVersion(v1) || !isValidSemanticVersion(v2)) {
     throw new Error('Invalid semantic version format');
   }
 
-  // Compare major, minor, patch
-  if (parsed1.major !== parsed2.major) {
-    return parsed1.major > parsed2.major ? 1 : -1;
-  }
-  if (parsed1.minor !== parsed2.minor) {
-    return parsed1.minor > parsed2.minor ? 1 : -1;
-  }
-  if (parsed1.patch !== parsed2.patch) {
-    return parsed1.patch > parsed2.patch ? 1 : -1;
-  }
-
-  // Handle pre-release versions
-  // Version without pre-release > version with pre-release
-  if (!parsed1.prerelease && parsed2.prerelease) return 1;
-  if (parsed1.prerelease && !parsed2.prerelease) return -1;
-  if (parsed1.prerelease && parsed2.prerelease) {
-    return parsed1.prerelease.localeCompare(parsed2.prerelease);
-  }
-
-  // Build metadata is ignored in version precedence
-  return 0;
+  return semver.compare(v1, v2);
 }
 
 /**

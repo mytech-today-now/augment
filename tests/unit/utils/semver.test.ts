@@ -7,7 +7,7 @@ import {
   parseSemanticVersion,
   compareSemanticVersions,
   satisfiesVersionRange
-} from '../module-system';
+} from '@cli/utils/module-system';
 
 describe('Semantic Versioning', () => {
   describe('isValidSemanticVersion', () => {
@@ -99,6 +99,16 @@ describe('Semantic Versioning', () => {
       expect(compareSemanticVersions('1.0.0', '1.0.0-alpha')).toBe(1);
       expect(compareSemanticVersions('1.0.0-alpha', '1.0.0')).toBe(-1);
       expect(compareSemanticVersions('1.0.0-beta', '1.0.0-alpha')).toBe(1);
+    });
+
+    it('should ignore build metadata in precedence', () => {
+      expect(compareSemanticVersions('1.0.0+build.1', '1.0.0+build.2')).toBe(0);
+      expect(compareSemanticVersions('1.0.0-alpha+build.1', '1.0.0-alpha+build.2')).toBe(0);
+    });
+
+    it('should order numeric prerelease identifiers correctly', () => {
+      expect(compareSemanticVersions('1.0.0-rc.10', '1.0.0-rc.2')).toBe(1);
+      expect(compareSemanticVersions('1.0.0-rc.2', '1.0.0-rc.10')).toBe(-1);
     });
   });
 
