@@ -162,7 +162,7 @@ describe('CLI Command Parsing', () => {
 
   describe('show command', () => {
     const registerShowCommand = (mockAction: jest.Mock) => {
-      program
+      return program
         .command('show <command> [module-name] [file-path]')
         .option('--json', 'Output as JSON')
         .option('--content', 'Display aggregated content')
@@ -170,6 +170,7 @@ describe('CLI Command Parsing', () => {
         .option('--depth <number>', 'Recursion depth', '1')
         .option('--filter <pattern>', 'Filter files by pattern')
         .option('--search <term>', 'Search within content')
+        .option('--task-search <term>', 'Search completed tasks by title, description, or close reason')
         .action(mockAction);
     };
 
@@ -255,6 +256,17 @@ describe('CLI Command Parsing', () => {
       expect(mockAction.mock.calls[0][0]).toBe('module');
       expect(mockAction.mock.calls[0][1]).toBe('php-standards');
       expect(mockAction.mock.calls[0][3].search).toBe('PSR-12');
+    });
+
+    it('should parse show completed command with --task-search option', () => {
+      const mockAction = jest.fn();
+      registerShowCommand(mockAction);
+
+      program.parse(['node', 'augx', 'show', 'completed', '--task-search', 'renamed']);
+
+      expect(mockAction).toHaveBeenCalled();
+      expect(mockAction.mock.calls[0][0]).toBe('completed');
+      expect(mockAction.mock.calls[0][3].taskSearch).toBe('renamed');
     });
 
     it.each([

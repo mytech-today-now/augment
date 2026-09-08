@@ -16,6 +16,7 @@ interface ShowCompletedOptions {
   quiet?: boolean;
   limit?: number;
   search?: string;
+  taskSearch?: string;
   labels?: string;
   type?: string;
   priority?: number;
@@ -179,11 +180,13 @@ export function showCompletedCommand(options: ShowCompletedOptions): void {
   }
 
   // Filter by search term if specified
-  if (options.search) {
-    tasks = filterTasksBySearch(tasks, options.search);
+  const searchTerm = options.taskSearch ?? options.search;
+
+  if (searchTerm) {
+    tasks = filterTasksBySearch(tasks, searchTerm);
 
     if (tasks.length === 0) {
-      console.log(chalk.yellow(`No completed tasks found matching "${options.search}".`));
+      console.log(chalk.yellow(`No completed tasks found matching "${searchTerm}".`));
       return;
     }
   }

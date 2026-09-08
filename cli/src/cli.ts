@@ -176,7 +176,7 @@ program
   .option('--since <date>', 'Filter completed tasks since date (ISO 8601 format, e.g., 2026-01-01)')
   .option('--until <date>', 'Filter completed tasks until date (ISO 8601 format, e.g., 2026-12-31)')
   .option('--limit <number>', 'Limit number of completed tasks shown', parseInt)
-  .option('--search <term>', 'Search completed tasks by title, description, or close reason')
+  .option('--task-search <term>', 'Search completed tasks by title, description, or close reason')
   .option('--labels <labels>', 'Filter completed tasks by labels (comma-separated)')
   .option('--type <type>', 'Filter completed tasks by issue type (e.g., task, epic, bug)')
   .option('--priority <number>', 'Filter completed tasks by priority (0-3)', parseInt)

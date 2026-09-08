@@ -9,12 +9,13 @@ import * as path from 'path';
 import { execSync } from 'child_process';
 
 const TEST_MODULE_PATH = path.join(__dirname, '../../../../augment-extensions/test-module');
+const TEST_COMPLETED_PROJECT_PATH = path.join(__dirname, '__fixtures__', 'completed-test-project');
 const CLI_PATH = path.join(__dirname, '../../../dist/cli.js');
 
-function runCli(command: string): { stdout: string; stderr: string; status: number } {
+function runCli(command: string, cwd: string = process.cwd()): { stdout: string; stderr: string; status: number } {
   try {
     return {
-      stdout: execSync(command, { encoding: 'utf-8' }),
+      stdout: execSync(command, { encoding: 'utf-8', cwd }),
       stderr: '',
       status: 0
     };
@@ -65,12 +66,41 @@ describe('Module Inspection Integration Tests', () => {
         '# Test Example\n\nThis is a test example file.'
       );
     }
+
+    fs.mkdirSync(path.join(TEST_COMPLETED_PROJECT_PATH, '.beads'), { recursive: true });
+    fs.mkdirSync(path.join(TEST_COMPLETED_PROJECT_PATH, 'scripts'), { recursive: true });
+    fs.writeFileSync(
+      path.join(TEST_COMPLETED_PROJECT_PATH, 'scripts', 'completed.jsonl'),
+      [
+        JSON.stringify({
+          id: 'bd-completed-search-1',
+          title: 'Rename completed search flag',
+          description: 'Keep task search working after the CLI flag rename',
+          status: 'closed',
+          closed_at: '2026-09-08T12:00:00Z',
+          close_reason: 'Renamed completed-task search flag'
+        }),
+        JSON.stringify({
+          id: 'bd-completed-search-2',
+          title: 'Document the CLI help output',
+          description: 'Add help coverage for the show command',
+          status: 'closed',
+          closed_at: '2026-09-07T12:00:00Z',
+          close_reason: 'Documentation follow-up'
+        })
+      ].join('\n'),
+      'utf-8'
+    );
   });
 
   afterAll(() => {
     // Clean up test fixtures
     if (fs.existsSync(TEST_MODULE_PATH)) {
       fs.rmSync(TEST_MODULE_PATH, { recursive: true, force: true });
+    }
+
+    if (fs.existsSync(TEST_COMPLETED_PROJECT_PATH)) {
+      fs.rmSync(TEST_COMPLETED_PROJECT_PATH, { recursive: true, force: true });
     }
   });
 
@@ -98,6 +128,51 @@ describe('Module Inspection Integration Tests', () => {
       expect(stdout).not.toContain('Module not found');
       expect(stdout).not.toContain('File not found');
       expect(stderr).toBe('');
+    });
+
+    it('should search module content with the module search flag', () => {
+      fs.writeFileSync(
+        path.join(TEST_MODULE_PATH, 'rules', 'test-rule.md'),
+        '# Test Rule\n\nThis is a test rule file.\n\nmodule-search-hit\n',
+        'utf-8'
+      );
+
+      const { stdout, stderr, status } = runCli(
+        `node ${CLI_PATH} show module test-module --content --depth 2 --search module-search-hit`
+      );
+
+      expect(status).toBe(0);
+      expect(stdout).toContain('Search Results: \"module-search-hit\"');
+      expect(stdout).toContain('module-search-hit');
+      expect(stdout).toContain('test-rule.md');
+      expect(stderr).toBe('');
+    });
+
+    it('should search completed tasks with the task search flag', () => {
+      const { stdout, stderr, status } = runCli(
+        `node ${CLI_PATH} show completed --task-search renamed`,
+        TEST_COMPLETED_PROJECT_PATH
+      );
+
+      expect(status).toBe(0);
+      expect(stdout).toContain('Completed Tasks (1)');
+      expect(stdout).toContain('bd-completed-search-1');
+      expect(stdout).toContain('Renamed completed-task search flag');
+      expect(stdout).not.toContain('bd-completed-search-2');
+      expect(stderr).toBe('');
+    });
+
+    it('should document unique search flags in show help', () => {
+      const { stdout, status } = runCli(`node ${CLI_PATH} show --help`);
+      const normalizedHelp = stdout.replace(/\s+/g, ' ');
+
+      expect(status).toBe(0);
+      expect(stdout).toContain('--search <term>');
+      expect(stdout).toContain('--task-search <term>');
+      expect(normalizedHelp).toContain('Search within module content');
+      expect(normalizedHelp).toContain('Search completed tasks by title, description, or close reason');
+      expect((stdout.match(/--search <term>/g) || []).length).toBe(1);
+      expect((stdout.match(/--task-search <term>/g) || []).length).toBe(1);
     });
 
     it('should route show linked to the linked-module handler', () => {
