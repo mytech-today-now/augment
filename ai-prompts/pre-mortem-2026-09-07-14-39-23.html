@@ -1,0 +1,1647 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pre-Mortem Report for @mytechtoday/augment-extensions, 2026-09-07 14:39:23</title>
+  <meta name="description" content="Static pre-mortem report for @mytechtoday/augment-extensions, generated from local repository evidence.">
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f3efe7;
+      --bg-accent: #e7f0ee;
+      --surface: #fffaf1;
+      --surface-soft: #f8f4ec;
+      --ink: #1f2732;
+      --muted: #596473;
+      --accent: #0f766e;
+      --accent-soft: rgba(15, 118, 110, 0.08);
+      --gold: #8b5e34;
+      --gold-soft: rgba(139, 94, 52, 0.08);
+      --core: #0f766e;
+      --additional: #9a6b15;
+      --border: #d9cfbf;
+      --shadow: 0 16px 40px rgba(30, 24, 17, 0.08);
+      --radius-lg: 22px;
+      --radius-md: 16px;
+      --radius-sm: 10px;
+      --max-width: 1100px;
+    }
+
+    html {
+      background:
+        radial-gradient(circle at top left, rgba(15, 118, 110, 0.08), transparent 28%),
+        radial-gradient(circle at top right, rgba(139, 94, 52, 0.08), transparent 24%),
+        linear-gradient(180deg, var(--bg), #fbfaf7 64%, #ffffff 100%);
+      color: var(--ink);
+      font-size: 16px;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+      line-height: 1.58;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(120deg, rgba(255, 255, 255, 0.45), transparent 22%),
+        linear-gradient(300deg, rgba(233, 240, 238, 0.45), transparent 18%);
+      z-index: -1;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration-thickness: 0.12em;
+      text-underline-offset: 0.18em;
+    }
+
+    a:hover,
+    a:focus-visible {
+      color: #0b5e58;
+    }
+
+    .page {
+      width: min(var(--max-width), calc(100vw - 2rem));
+      margin: 0 auto;
+      padding: 1.25rem 0 3rem;
+    }
+
+    .report-header,
+    .summary-card,
+    .method-card,
+    .note-card,
+    .issue,
+    .footer-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+    }
+
+    .report-header {
+      position: relative;
+      overflow: hidden;
+      padding: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .report-header::after {
+      content: "";
+      position: absolute;
+      inset: 0 auto auto 0;
+      width: 18rem;
+      height: 18rem;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(15, 118, 110, 0.14), transparent 68%);
+      transform: translate(-35%, -35%);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      margin: 0 0 0.35rem;
+      color: var(--accent);
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+      margin: 0;
+      line-height: 1.18;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 4vw, 3.4rem);
+      max-width: 16ch;
+    }
+
+    h2 {
+      font-size: clamp(1.35rem, 2vw, 2rem);
+      margin-bottom: 0.8rem;
+    }
+
+    h3 {
+      font-size: 1.35rem;
+    }
+
+    h4 {
+      font-size: 1rem;
+      margin-bottom: 0.35rem;
+    }
+
+    p {
+      margin: 0 0 0.85rem;
+    }
+
+    .header-grid {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.85fr);
+      gap: 1.25rem;
+      align-items: start;
+      z-index: 1;
+    }
+
+    .lede {
+      font-size: 1.05rem;
+      color: var(--muted);
+      max-width: 66ch;
+    }
+
+    .meta-grid,
+    .summary-grid,
+    .method-grid {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .meta-grid {
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    }
+
+    .meta-item,
+    .summary-card,
+    .method-card,
+    .note-card {
+      padding: 1rem 1.05rem;
+    }
+
+    .meta-label {
+      margin: 0 0 0.2rem;
+      color: var(--muted);
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .meta-value {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    .summary-grid {
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    }
+
+    .summary-card h3,
+    .method-card h3,
+    .note-card h3 {
+      margin-bottom: 0.45rem;
+      font-size: 1.08rem;
+    }
+
+    .summary-card p,
+    .method-card p,
+    .note-card p {
+      color: var(--muted);
+      margin-bottom: 0;
+    }
+
+    .summary-card strong {
+      color: var(--ink);
+    }
+
+    section {
+      margin-top: 1.4rem;
+    }
+
+    .section-shell {
+      padding: 1.2rem 0 0;
+    }
+
+    .section-shell > .section-intro {
+      max-width: 80ch;
+      color: var(--muted);
+    }
+
+    .callout {
+      padding: 1rem 1.05rem;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, var(--surface), #fff);
+    }
+
+    .callout.core {
+      border-left: 6px solid var(--core);
+      background: linear-gradient(180deg, rgba(15, 118, 110, 0.08), rgba(255, 255, 255, 0.96));
+    }
+
+    .callout.additional {
+      border-left: 6px solid var(--additional);
+      background: linear-gradient(180deg, rgba(154, 107, 21, 0.08), rgba(255, 255, 255, 0.96));
+    }
+
+    .risk-table-wrap {
+      overflow-x: auto;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 980px;
+      background: var(--surface);
+    }
+
+    caption {
+      padding: 1rem 1rem 0.65rem;
+      text-align: left;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      font-weight: 700;
+    }
+
+    thead {
+      background: linear-gradient(180deg, #f0ece4, #eae4d8);
+    }
+
+    th,
+    td {
+      padding: 0.85rem 0.8rem;
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      font-size: 0.85rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+
+    tbody tr:nth-child(odd) {
+      background: rgba(255, 255, 255, 0.55);
+    }
+
+    tbody tr[data-kind="core"] {
+      border-left: 4px solid var(--core);
+    }
+
+    tbody tr[data-kind="additional"] {
+      border-left: 4px solid var(--additional);
+    }
+
+    .issue-list {
+      display: grid;
+      gap: 1.1rem;
+    }
+
+    .issue {
+      padding: 1.25rem;
+      border-left: 6px solid var(--accent);
+    }
+
+    .issue[data-issue-kind="core"] {
+      border-left-color: var(--core);
+    }
+
+    .issue[data-issue-kind="additional"] {
+      border-left-color: var(--additional);
+    }
+
+    .issue-header {
+      display: grid;
+      gap: 0.15rem;
+      margin-bottom: 0.85rem;
+    }
+
+    .issue-number {
+      margin: 0;
+      color: var(--muted);
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .issue-kind-badge {
+      display: inline-block;
+      width: fit-content;
+      margin-top: 0.3rem;
+      padding: 0.28rem 0.6rem;
+      border-radius: 999px;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .issue[data-issue-kind="additional"] .issue-kind-badge {
+      background: var(--gold-soft);
+      color: var(--gold);
+    }
+
+    .issue-details {
+      display: grid;
+      grid-template-columns: minmax(9.5rem, 16rem) minmax(0, 1fr);
+      gap: 0.45rem 1rem;
+      margin: 0;
+    }
+
+    .issue-details div {
+      display: contents;
+    }
+
+    .issue-details dt {
+      margin: 0;
+      padding-top: 0.1rem;
+      color: var(--gold);
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .issue[data-issue-kind="core"] .issue-details dt {
+      color: var(--core);
+    }
+
+    .issue-details dd {
+      margin: 0;
+      padding-bottom: 0.25rem;
+    }
+
+    .issue-details dd p:last-child {
+      margin-bottom: 0;
+    }
+
+    .issue-details ul,
+    .issue-details ol {
+      margin: 0.35rem 0 0.1rem 1.1rem;
+      padding: 0;
+    }
+
+    .issue-details li + li {
+      margin-top: 0.2rem;
+    }
+
+    .field-note {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .evidence-list {
+      margin: 0.4rem 0 0;
+      padding-left: 1.1rem;
+    }
+
+    .evidence-list li + li {
+      margin-top: 0.25rem;
+    }
+
+    code,
+    pre {
+      font-family: "Cascadia Mono", "Consolas", "Liberation Mono", monospace;
+      font-size: 0.95em;
+    }
+
+    code {
+      padding: 0.08rem 0.32rem;
+      border-radius: 0.35rem;
+      background: rgba(31, 39, 50, 0.06);
+    }
+
+    pre {
+      margin: 0.45rem 0 0;
+      padding: 0.8rem 0.9rem;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: #f9f7f2;
+    }
+
+    .scope-list,
+    .method-list,
+    .footer-list {
+      margin: 0.35rem 0 0;
+      padding-left: 1.1rem;
+    }
+
+    .scope-list li + li,
+    .method-list li + li,
+    .footer-list li + li {
+      margin-top: 0.3rem;
+    }
+
+    .footer-card {
+      margin-top: 1.5rem;
+      padding: 1rem 1.05rem;
+      color: var(--muted);
+    }
+
+    .footer-card strong {
+      color: var(--ink);
+    }
+
+    @media (max-width: 860px) {
+      .header-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .issue-details {
+        grid-template-columns: 1fr;
+      }
+
+      .issue-details dt {
+        padding-top: 0.5rem;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .page {
+        width: min(var(--max-width), calc(100vw - 1rem));
+        padding-top: 0.5rem;
+      }
+
+      .report-header,
+      .issue,
+      .footer-card,
+      .summary-card,
+      .method-card,
+      .note-card {
+        border-radius: 16px;
+      }
+
+      h1 {
+        font-size: 2rem;
+      }
+    }
+
+    @media print {
+      html,
+      body {
+        background: #ffffff;
+      }
+
+      body::before,
+      .report-header::after {
+        display: none;
+      }
+
+      .page {
+        width: 100%;
+        padding: 0;
+      }
+
+      .report-header,
+      .summary-card,
+      .method-card,
+      .note-card,
+      .issue,
+      .footer-card,
+      .risk-table-wrap {
+        box-shadow: none;
+      }
+
+      .report-header,
+      .issue,
+      .footer-card,
+      .summary-card,
+      .method-card,
+      .note-card {
+        break-inside: auto;
+        page-break-inside: auto;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      thead {
+        display: table-header-group;
+      }
+
+      tr {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="report-header">
+      <div class="header-grid">
+        <div>
+          <p class="eyebrow">Static pre-mortem report</p>
+          <h1>Pre-Mortem Report for @mytechtoday/augment-extensions</h1>
+          <p class="lede">This report turns local repository evidence into a repair plan another coding agent can execute safely. It is scoped to the current working tree and keeps the output fully self-contained, printable, and readable without JavaScript.</p>
+        </div>
+        <dl class="meta-grid" aria-label="Report metadata">
+          <div class="meta-item">
+            <dt class="meta-label">Repository</dt>
+            <dd class="meta-value">@mytechtoday/augment-extensions</dd>
+          </div>
+          <div class="meta-item">
+            <dt class="meta-label">Branch</dt>
+            <dd class="meta-value">main</dd>
+          </div>
+          <div class="meta-item">
+            <dt class="meta-label">Generated</dt>
+            <dd class="meta-value">2026-09-07 14:39:23 local time</dd>
+          </div>
+          <div class="meta-item">
+            <dt class="meta-label">Output path</dt>
+            <dd class="meta-value">./ai-prompts/pre-mortem-2026-09-07-14-39-23.html</dd>
+          </div>
+        </dl>
+      </div>
+    </header>
+
+    <main>
+      <section id="executive-summary" class="section-shell">
+        <h2>Executive Summary</h2>
+        <p class="section-intro">The highest-risk problems in this repository cluster around command routing, runtime compatibility, mirror cleanup, and version or validation paths that look implemented but currently return incomplete or incorrect behavior. The strongest signals came from the CLI command tree, the mirror runner, the module validation utilities, the visual-design type system, and direct test failures in the local harness.</p>
+        <div class="summary-grid" aria-label="Summary metrics">
+          <div class="summary-card">
+            <h3>16 issues</h3>
+            <p>Exactly 16 repository-grounded findings, with the first 10 marked as Core and the remaining 6 as Additional.</p>
+          </div>
+          <div class="summary-card">
+            <h3>4 direct failures</h3>
+            <p>Local diagnostics exposed a command parser mismatch, a CommonJS plus ESM import failure, a stale mirror prune failure, and a brittle test harness path split.</p>
+          </div>
+          <div class="summary-card">
+            <h3>1 testable assumption</h3>
+            <p>The catalog hook issue is intentionally labeled as a testable assumption because the repository layout outside this checkout was not directly observed.</p>
+          </div>
+          <div class="summary-card">
+            <h3>Original visual system</h3>
+            <p>No prior complete pre-mortem document existed in <code>./ai-prompts/</code>, so this report uses an original self-contained print-first stylesheet.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="methodology" class="section-shell">
+        <h2>Review Scope And Methodology</h2>
+        <div class="method-grid">
+          <div class="method-card">
+            <h3>Repository evidence first</h3>
+            <p>I resolved the project root from the active workspace, read <code>AGENTS.md</code> at the root and in <code>cli/</code>, inspected the package manifest, and used local Git metadata plus repository files as the source of truth.</p>
+          </div>
+          <div class="method-card">
+            <h3>Read-only diagnostics</h3>
+            <p>I ran focused commands that were safe for inspection only, including targeted Jest and Vitest runs, and I recorded the actual failure text where a command did not complete cleanly.</p>
+          </div>
+          <div class="method-card">
+            <h3>Scope discipline</h3>
+            <p>No application source files were modified. The only file created in this session is the report itself under <code>./ai-prompts/</code>, matching the requested output path.</p>
+          </div>
+        </div>
+        <ul class="method-list">
+          <li><code>git rev-parse --show-toplevel</code> confirmed the repository root.</li>
+          <li><code>git branch --show-current</code> reported <code>main</code>.</li>
+          <li><code>git remote -v</code> identified the repository as <code>mytech-today-now/augment-extensions</code>.</li>
+          <li><code>npm test -- --runInBand __tests__/gui/gui-components.test.ts</code> failed while parsing <code>inquirer</code> from <code>cli/src/commands/gui.ts</code>.</li>
+          <li><code>npm run test:vitest</code> surfaced the mirror prune failure in <code>tests/mirror-idempotent.test.ts</code>.</li>
+        </ul>
+      </section>
+
+      <section id="input-resolution" class="section-shell">
+        <h2>Input-Resolution Note</h2>
+        <div class="note-card">
+          <h3>How the missing mandatory list was resolved</h3>
+          <p>The source request referred to 10 mandatory issues but did not enumerate them. I resolved that conflict by selecting the 10 highest-priority issues from repository evidence and then adding 6 distinct, high-value issues from the same inspection. That selection is explicit, testable, and labeled in both the risk table and the issue articles.</p>
+          <p>The selected issues are grouped as Core for the first 10 items and Additional for the last 6 items. That grouping is not cosmetic. It is the working assumption that lets a future agent prove or disprove the ranking while still acting on a complete report.</p>
+        </div>
+      </section>
+
+      <section id="prioritized-risk-table" class="section-shell">
+        <h2>Prioritized Risk Table</h2>
+        <p class="section-intro">The table below mirrors the 16 issue articles one-for-one. Each row matches the article number, title, kind, severity, likelihood, impacted area, and priority.</p>
+        <div class="risk-table-wrap">
+          <table>
+            <caption>Prioritized issues, ordered by repair urgency</caption>
+            <thead>
+              <tr>
+                <th scope="col">Issue</th>
+                <th scope="col">Title</th>
+                <th scope="col">Kind</th>
+                <th scope="col">Severity</th>
+                <th scope="col">Likelihood</th>
+                <th scope="col">Impacted area</th>
+                <th scope="col">Priority</th>
+                <th scope="col">Evidence</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr data-kind="core">
+                <td>1</td>
+                <td>Show module syntax is routed through the wrong command signature</td>
+                <td>Core</td>
+                <td>High</td>
+                <td>Almost certain</td>
+                <td>CLI command parsing and module inspection</td>
+                <td>P1</td>
+                <td><code>cli/src/cli.ts</code>, <code>cli/src/commands/show.ts</code>, <code>cli/src/__tests__/integration/module-inspection.integration.test.ts</code></td>
+              </tr>
+              <tr data-kind="core">
+                <td>2</td>
+                <td>Interactive command modules crash when inquirer loads under CommonJS</td>
+                <td>Core</td>
+                <td>High</td>
+                <td>Likely</td>
+                <td>CLI runtime and interactive workflows</td>
+                <td>P2</td>
+                <td><code>cli/tsconfig.json</code>, <code>cli/src/commands/gui.ts</code>, <code>cli/src/commands/init.ts</code>, <code>cli/src/commands/self-remove.ts</code></td>
+              </tr>
+              <tr data-kind="core">
+                <td>3</td>
+                <td>Mirror relinks do not prune orphaned tracked targets</td>
+                <td>Core</td>
+                <td>High</td>
+                <td>Likely</td>
+                <td>Mirror sync and stale artifact cleanup</td>
+                <td>P3</td>
+                <td><code>cli/src/lib/mirror-runner.ts</code>, <code>tests/mirror-idempotent.test.ts</code></td>
+              </tr>
+              <tr data-kind="core">
+                <td>4</td>
+                <td>Linked modules ignore --version when the module already exists</td>
+                <td>Core</td>
+                <td>Medium</td>
+                <td>Almost certain</td>
+                <td>Version pinning and module linking</td>
+                <td>P4</td>
+                <td><code>cli/src/commands/link.ts</code>, <code>cli/src/cli.ts</code></td>
+              </tr>
+              <tr data-kind="core">
+                <td>5</td>
+                <td>Placeholder commands advertise features that are not implemented</td>
+                <td>Core</td>
+                <td>Medium</td>
+                <td>Almost certain</td>
+                <td>Public CLI command implementation</td>
+                <td>P5</td>
+                <td><code>cli/src/cli.ts</code> create, pin, check-updates, and diff handlers</td>
+              </tr>
+              <tr data-kind="core">
+                <td>6</td>
+                <td>MCP transport handling accepts http but execution rejects it</td>
+                <td>Core</td>
+                <td>Medium</td>
+                <td>Likely</td>
+                <td>MCP configuration, execution, and discovery</td>
+                <td>P6</td>
+                <td><code>cli/src/utils/mcp-integration.ts</code>, <code>cli/src/commands/mcp.ts</code></td>
+              </tr>
+              <tr data-kind="core">
+                <td>7</td>
+                <td>Project-agnostic validation only scans markdown and JSON</td>
+                <td>Core</td>
+                <td>Medium</td>
+                <td>Almost certain</td>
+                <td>Module validation and portability checks</td>
+                <td>P7</td>
+                <td><code>cli/src/utils/module-system.ts</code> and repository files such as <code>augment-extensions/visual-design/types.ts</code></td>
+              </tr>
+              <tr data-kind="core">
+                <td>8</td>
+                <td>Pattern analysis returns an empty result set</td>
+                <td>Core</td>
+                <td>Medium</td>
+                <td>Almost certain</td>
+                <td>Code analysis command coverage</td>
+                <td>P8</td>
+                <td><code>cli/src/commands/code-analysis.ts</code></td>
+              </tr>
+              <tr data-kind="core">
+                <td>9</td>
+                <td>Self-remove promises a complete uninstall but only unlinks modules</td>
+                <td>Core</td>
+                <td>Medium</td>
+                <td>Likely</td>
+                <td>Uninstall and project recovery workflow</td>
+                <td>P9</td>
+                <td><code>cli/src/cli.ts</code>, <code>cli/src/commands/self-remove.ts</code></td>
+              </tr>
+              <tr data-kind="core">
+                <td>10</td>
+                <td>Local version comparison is not semver-aware</td>
+                <td>Core</td>
+                <td>Medium</td>
+                <td>Possible</td>
+                <td>Version comparison and upgrade accuracy</td>
+                <td>P10</td>
+                <td><code>cli/src/commands/update.ts</code></td>
+              </tr>
+              <tr data-kind="additional">
+                <td>11</td>
+                <td>Augment version compatibility is treated as always compatible</td>
+                <td>Additional</td>
+                <td>Medium</td>
+                <td>Likely</td>
+                <td>Upgrade safety and compatibility reporting</td>
+                <td>P11</td>
+                <td><code>cli/src/core/compatibility-checker.ts</code></td>
+              </tr>
+              <tr data-kind="additional">
+                <td>12</td>
+                <td>Specialized inspection handlers return empty payloads</td>
+                <td>Additional</td>
+                <td>Medium</td>
+                <td>Almost certain</td>
+                <td>Module inspection and content extraction</td>
+                <td>P12</td>
+                <td><code>cli/src/utils/inspection-handlers.ts</code></td>
+              </tr>
+              <tr data-kind="additional">
+                <td>13</td>
+                <td>Catalog auto-sync hook is gated on a repo-specific path</td>
+                <td>Additional</td>
+                <td>Low</td>
+                <td>Possible</td>
+                <td>Git hook automation and catalog sync</td>
+                <td>P13</td>
+                <td><code>cli/src/utils/catalog-sync.ts</code>, <code>cli/src/commands/catalog.ts</code></td>
+              </tr>
+              <tr data-kind="additional">
+                <td>14</td>
+                <td>Visual-design types and vendor data are out of sync</td>
+                <td>Additional</td>
+                <td>Medium</td>
+                <td>Likely</td>
+                <td>Visual-design module type safety</td>
+                <td>P14</td>
+                <td><code>augment-extensions/visual-design/types.ts</code>, <code>augment-extensions/visual-design/domains/web-page-styles/google-modern.ts</code>, <code>augment-extensions/visual-design/style-selector.ts</code></td>
+              </tr>
+              <tr data-kind="additional">
+                <td>15</td>
+                <td>The test harness is split across incompatible runners</td>
+                <td>Additional</td>
+                <td>Medium</td>
+                <td>Likely</td>
+                <td>Test infrastructure and release confidence</td>
+                <td>P15</td>
+                <td><code>package.json</code>, <code>jest.config.js</code>, <code>vitest.config.ts</code>, <code>test-all.ts</code></td>
+              </tr>
+              <tr data-kind="additional">
+                <td>16</td>
+                <td>Versioned module commands depend on VERSION files that most modules do not have</td>
+                <td>Additional</td>
+                <td>Low</td>
+                <td>Almost certain</td>
+                <td><code>use</code> and <code>upgrade</code> version resolution</td>
+                <td>P16</td>
+                <td><code>cli/src/core/version-manager.ts</code>, <code>cli/src/core/version-resolver.ts</code>, <code>cli/src/commands/use.ts</code>, <code>cli/src/commands/upgrade.ts</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="issues" class="section-shell">
+        <h2>Issue Details</h2>
+
+        <article id="issue-01" class="issue issue--core" data-issue-kind="core">
+          <header class="issue-header">
+            <p class="issue-number">Issue 1</p>
+            <h3>Show module syntax is routed through the wrong command signature</h3>
+            <span class="issue-kind-badge">Core</span>
+          </header>
+          <dl class="issue-details">
+            <div><dt>Title</dt><dd>Show module syntax is routed through the wrong command signature</dd></div>
+            <div><dt>Kind</dt><dd>Core</dd></div>
+            <div><dt>Priority</dt><dd>P1</dd></div>
+            <div><dt>Severity</dt><dd>High</dd></div>
+            <div><dt>Likelihood</dt><dd>Almost certain</dd></div>
+            <div><dt>Impacted area</dt><dd>CLI command parsing and module inspection</dd></div>
+            <div><dt>Failure mode</dt><dd>The public help text and integration tests expect <code>augx show module &lt;module-name&gt; [file-path]</code>, but <code>cli/src/cli.ts</code> registers <code>show &lt;module&gt; [file-path]</code>. Commander therefore treats <code>module</code> as the module name and shifts the real module name into the file-path slot, which breaks module inspection before the handler can do useful work.</dd></div>
+            <div><dt>Evidence or rationale</dt><dd>
+              <ul class="evidence-list">
+                <li><code>cli/src/cli.ts:154-202</code> registers the generic <code>show &lt;module&gt; [file-path]</code> command and routes special cases only for <code>completed</code>, <code>linked</code>, and <code>all</code>.</li>
+                <li><code>cli/src/commands/show.ts:163-168</code> prints usage text that explicitly says <code>augx show module &lt;module-name&gt;</code>.</li>
+                <li><code>cli/src/__tests__/integration/module-inspection.integration.test.ts:55-165</code> exercises <code>node ... show module test-module</code> and related module-inspection flows.</li>
+                <li><code>cli/src/__tests__/cli.test.ts:246-349</code> asserts the Commander signature <code>show module &lt;module-name&gt; [file-path]</code>.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Why this matters</dt><dd>Users cannot follow the documented inspection syntax, the integration path fails on the first token, and the command surface becomes hard to trust because the help text, tests, and runtime parser disagree.</dd></div>
+            <div><dt>Recommended mitigation</dt><dd>Make the parser and public syntax agree. The smallest compatible fix is to add an explicit <code>show module</code> route or alias that delegates to the existing module inspection handler, then keep the legacy special cases intact. Do not redesign the output format or broaden the command tree unless the alias cannot be expressed cleanly in Commander.</dd></div>
+            <div><dt>Implementation Prompt</dt><dd>
+              <p>Work in the current project and resolve the repository root yourself before making changes. Inspect <code>cli/src/cli.ts</code>, <code>cli/src/commands/show.ts</code>, <code>cli/src/__tests__/integration/module-inspection.integration.test.ts</code>, and <code>cli/src/__tests__/cli.test.ts</code> first. Reproduce the mismatch, then make <code>augx show module &lt;module-name&gt; [file-path]</code> resolve the intended module instead of misparsing <code>module</code> as the name. Preserve the existing module-inspection output, the completed and linked shortcuts, and the current error handling for missing modules. Prefer the smallest Commander-compatible change, such as an alias or a dedicated subcommand dispatcher, and avoid a broad CLI rewrite. If a route cannot be resolved, show a one-line usage explanation and exit with the existing nonzero status. If an unexpected parse failure appears, stop and record the exact command and stack without widening the scope.</p>
+              <p>Update the affected tests so they assert the documented syntax rather than the broken parse path. Add or adjust regression coverage for <code>show module test-module</code>, a file-path variant, and the existing shortcut tokens. Run the focused Jest and Vitest checks that exercise the CLI parser and the module inspection integration path. In the final report, list the changed files, the exact commands you ran, the observed results, and any remaining assumptions.</p>
+            </dd></div>
+            <div><dt>Regression tests</dt><dd>
+              <ul>
+                <li>Scenario: <code>augx show module test-module</code> resolves the test module and prints the module overview. Setup: module fixture exists. Action: invoke the command. Expected result: module name is correct, no misparsed file-path, and the existing overview text still appears.</li>
+                <li>Scenario: <code>augx show module test-module rules/test-rule.md</code> resolves a file path inside the module. Setup: file exists in the fixture. Action: invoke the command. Expected result: the file content is shown and no "module not found" or "file not found" error occurs.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Additional baseline tests</dt><dd>
+              <ul>
+                <li>Confirm <code>show linked</code> and <code>show all</code> still route to their existing handlers.</li>
+                <li>Confirm invalid module names still fail with the same exit code and similar suggestion text.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Acceptance criteria</dt><dd>
+              <ul>
+                <li>The documented <code>show module</code> syntax works end to end.</li>
+                <li>Legacy shortcut behavior remains unchanged.</li>
+                <li>The parser no longer treats <code>module</code> as the module name for the documented syntax.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Confidence</dt><dd>High</dd></div>
+          </dl>
+        </article>
+
+        <article id="issue-02" class="issue issue--core" data-issue-kind="core">
+          <header class="issue-header">
+            <p class="issue-number">Issue 2</p>
+            <h3>Interactive command modules crash when inquirer loads under CommonJS</h3>
+            <span class="issue-kind-badge">Core</span>
+          </header>
+          <dl class="issue-details">
+            <div><dt>Title</dt><dd>Interactive command modules crash when inquirer loads under CommonJS</dd></div>
+            <div><dt>Kind</dt><dd>Core</dd></div>
+            <div><dt>Priority</dt><dd>P2</dd></div>
+            <div><dt>Severity</dt><dd>High</dd></div>
+            <div><dt>Likelihood</dt><dd>Likely</dd></div>
+            <div><dt>Impacted area</dt><dd>CLI runtime and interactive workflows</dd></div>
+            <div><dt>Failure mode</dt><dd>The CLI compiles to CommonJS, but the top-level imports in <code>gui.ts</code>, <code>init.ts</code>, and <code>self-remove.ts</code> load <code>inquirer</code> immediately. In this checkout, Jest fails before it reaches any assertions because <code>inquirer</code>'s ESM entry point is parsed through a CommonJS path.</dd></div>
+            <div><dt>Evidence or rationale</dt><dd>
+              <ul class="evidence-list">
+                <li><code>cli/tsconfig.json:3-5</code> sets <code>module</code> to <code>commonjs</code>.</li>
+                <li><code>cli/src/commands/gui.ts:1-2</code>, <code>cli/src/commands/init.ts:1-4</code>, and <code>cli/src/commands/self-remove.ts:1-4</code> import <code>inquirer</code> at module load time.</li>
+                <li><code>npm test -- --runInBand __tests__/gui/gui-components.test.ts</code> failed with <code>SyntaxError: Cannot use import statement outside a module</code> from <code>node_modules/inquirer/lib/index.js</code>.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Why this matters</dt><dd>Interactive commands cannot even be imported reliably in the current build and test environment. That blocks GUI flows, initialization, and self-removal from being exercised in automation and risks the same failure in a runtime path that happens to load the module eagerly.</dd></div>
+            <div><dt>Recommended mitigation</dt><dd>Keep the current command behavior, but lazy-load or shim <code>inquirer</code> so the module can be imported under CommonJS without tripping the ESM parser. If interactive mode is unavailable, show a concise terminal-friendly explanation and exit cleanly instead of crashing during import.</dd></div>
+            <div><dt>Implementation Prompt</dt><dd>
+              <p>Work in the current project and resolve the repository root yourself before editing. Inspect <code>cli/src/commands/gui.ts</code>, <code>cli/src/commands/init.ts</code>, <code>cli/src/commands/self-remove.ts</code>, and <code>cli/tsconfig.json</code> first. Reproduce the import failure with the focused Jest command, then refactor the prompt layer so the command modules can be loaded in the current CommonJS build without a parse-time crash. Prefer the smallest repo-consistent change, such as a lazy <code>import()</code> or a thin compatibility wrapper, and keep the existing prompt behavior, keyboard support, and console output intact. Do not introduce a new prompt framework or a broad build-system change. If interactive mode is not available, print a one-line explanation that tells the user the terminal lacks prompt support and how to retry from a proper TTY.</p>
+              <p>Update the GUI, init, and self-remove tests so they verify the module loads cleanly and the prompt logic still behaves as expected. Add regression coverage for the import path and at least one real prompt interaction path. Run the targeted Jest test that failed here and the related command-level tests. In the final report, include the commands you ran, the exact failure before the fix, the files changed, and any remaining compatibility caveats.</p>
+            </dd></div>
+            <div><dt>Regression tests</dt><dd>
+              <ul>
+                <li>Scenario: importing <code>cli/src/commands/gui.ts</code> under Jest does not fail at parse time. Setup: mocked <code>inquirer</code> or lazy import path. Action: require the module. Expected result: tests reach assertions instead of stopping on an ESM syntax error.</li>
+                <li>Scenario: the GUI command still prompts for actions when <code>inquirer</code> is available. Setup: mock prompt responses. Action: run the command. Expected result: existing prompt flow remains intact.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Additional baseline tests</dt><dd>
+              <ul>
+                <li>Confirm <code>init</code> and <code>self-remove</code> still emit their existing confirmation and dry-run text.</li>
+                <li>Confirm the fallback message appears when prompt support is unavailable.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Acceptance criteria</dt><dd>
+              <ul>
+                <li>The interactive command modules can be imported in the current build.</li>
+                <li>Jest no longer fails before assertions because of the <code>inquirer</code> import path.</li>
+                <li>Users see a clear explanation instead of a crash when interactive mode is unavailable.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Confidence</dt><dd>High</dd></div>
+          </dl>
+        </article>
+
+        <article id="issue-03" class="issue issue--core" data-issue-kind="core">
+          <header class="issue-header">
+            <p class="issue-number">Issue 3</p>
+            <h3>Mirror relinks do not prune orphaned tracked targets</h3>
+            <span class="issue-kind-badge">Core</span>
+          </header>
+          <dl class="issue-details">
+            <div><dt>Title</dt><dd>Mirror relinks do not prune orphaned tracked targets</dd></div>
+            <div><dt>Kind</dt><dd>Core</dd></div>
+            <div><dt>Priority</dt><dd>P3</dd></div>
+            <div><dt>Severity</dt><dd>High</dd></div>
+            <div><dt>Likelihood</dt><dd>Likely</dd></div>
+            <div><dt>Impacted area</dt><dd>Mirror sync and stale artifact cleanup</dd></div>
+            <div><dt>Failure mode</dt><dd>When a module shrinks, the mirror runner still leaves previously tracked targets on disk. The dedicated idempotent test currently expects <code>beta.md</code> to be removed on the second run, but the assertion fails because the destination file remains present.</dd></div>
+            <div><dt>Evidence or rationale</dt><dd>
+              <ul class="evidence-list">
+                <li><code>cli/src/lib/mirror-runner.ts:276-354</code> contains the prune path and the <code>removeTrackedTarget</code> helper.</li>
+                <li><code>tests/mirror-idempotent.test.ts:76-140</code> simulates a shrink, relink, and regrowth sequence.</li>
+                <li>The failing assertion is at <code>tests/mirror-idempotent.test.ts:114</code>, which expects <code>fs.existsSync(...beta.md)</code> to be <code>false</code>.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Why this matters</dt><dd>Leftover mirrored files create false content, confuse downstream agents, and make relinks non-idempotent. A mirror that does not clean up orphans turns a safe sync operation into a source of drift.</dd></div>
+            <div><dt>Recommended mitigation</dt><dd>Fix the prune path so it deletes previously tracked targets that are no longer desired on the current run, while still preserving hand-edited targets and the existing CLAUDE include stub behavior. Do not widen the cleanup to files the tool did not materialize.</dd></div>
+            <div><dt>Implementation Prompt</dt><dd>
+              <p>Work in the current project and resolve the root before changing code. Inspect <code>cli/src/lib/mirror-runner.ts</code> and <code>tests/mirror-idempotent.test.ts</code> first, then reproduce the shrink case that leaves <code>beta.md</code> behind. Make the prune logic remove only the tracked targets that are absent from the new desired set, and keep the hand-edited file protection intact. Prefer a minimal fix inside the existing mirror runner rather than a new sync subsystem. Do not alter the include-stub semantics for CLAUDE unless the failing test proves they are directly involved. If removal fails unexpectedly, record the exact path and reason instead of broadening the deletion rules.</p>
+              <p>Update the test to cover shrink, regrowth, and a hand-edited target that must survive. Add any small helper test you need to prove the pruning path is deterministic across repeated runs. Run the dedicated Vitest file until the orphaned target is gone and the regrowth path still creates the expected new file. In the final report, list the exact mirror state before and after the fix, the commands you ran, and any remaining edge cases that need follow-up.</p>
+            </dd></div>
+            <div><dt>Regression tests</dt><dd>
+              <ul>
+                <li>Scenario: a deleted source file is removed from the mirrored tree on the next run. Setup: create a three-file module, mirror it, delete one source file, and rerun. Action: inspect the mirrored destination. Expected result: the orphaned file is gone and the tracked entry count drops.</li>
+                <li>Scenario: a hand-edited mirrored file is preserved. Setup: modify a mirrored file after the first run. Action: relink. Expected result: the file stays in place and is reported as kept.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Additional baseline tests</dt><dd>
+              <ul>
+                <li>Confirm regrowth still creates the new mirror file after the module gains another rule.</li>
+                <li>Confirm the CLAUDE include stub is still managed exactly once.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Acceptance criteria</dt><dd>
+              <ul>
+                <li>No orphaned tracked target survives a relink after its source disappears.</li>
+                <li>Hand-edited files remain protected.</li>
+                <li>The idempotent relink test passes without changing the established mirror layout.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Confidence</dt><dd>High</dd></div>
+          </dl>
+        </article>
+
+        <article id="issue-04" class="issue issue--core" data-issue-kind="core">
+          <header class="issue-header">
+            <p class="issue-number">Issue 4</p>
+            <h3>Linked modules ignore --version when the module already exists</h3>
+            <span class="issue-kind-badge">Core</span>
+          </header>
+          <dl class="issue-details">
+            <div><dt>Title</dt><dd>Linked modules ignore --version when the module already exists</dd></div>
+            <div><dt>Kind</dt><dd>Core</dd></div>
+            <div><dt>Priority</dt><dd>P4</dd></div>
+            <div><dt>Severity</dt><dd>Medium</dd></div>
+            <div><dt>Likelihood</dt><dd>Almost certain</dd></div>
+            <div><dt>Impacted area</dt><dd>Version pinning and module linking</dd></div>
+            <div><dt>Failure mode</dt><dd>The link command only writes a module entry when it is not already present in <code>extensions.json</code>. If the entry exists, the code logs <code>Module already linked</code> and exits the update path without applying a new <code>--version</code> value.</dd></div>
+            <div><dt>Evidence or rationale</dt><dd>
+              <ul class="evidence-list">
+                <li><code>cli/src/cli.ts:231-238</code> exposes <code>--version &lt;version&gt;</code> on <code>link</code>.</li>
+                <li><code>cli/src/commands/link.ts:97-114</code> only pushes a new record when <code>existingIndex &lt; 0</code>.</li>
+                <li>When a module already exists, the current branch prints <code>Module already linked</code> and skips the version update.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Why this matters</dt><dd>Version pinning appears to succeed but silently leaves the old version in place. That is a trust problem, and it can also mask incompatible module drift when a project believes it pinned a specific release.</dd></div>
+            <div><dt>Recommended mitigation</dt><dd>Update the existing config entry when <code>--version</code> is supplied, and preserve the existing no-op behavior only when no version override is requested. Keep the current mirror invocation and console tone stable.</dd></div>
+            <div><dt>Implementation Prompt</dt><dd>
+              <p>Work in the current project and resolve the repository root yourself. Inspect <code>cli/src/commands/link.ts</code>, the <code>link</code> command registration in <code>cli/src/cli.ts</code>, and any linked-module tests before editing. Make <code>--version</code> update an existing linked module in place instead of silently skipping the requested version. Preserve the current mirror behavior, config shape, and success messaging where possible. Do not rewrite the command into a new configuration system, and do not change unrelated link metadata. If the module cannot be updated, emit a precise error and keep the previous record untouched.</p>
+              <p>Add regression coverage for first-time link, relink with the same version, and relink with a different version. Confirm the JSON config is updated only in the intended fields and that existing mirror and unlink flows still behave as before. Run the targeted link tests and any nearby integration checks. In the final report, include the file diff, the commands run, and any remaining versioning caveats.</p>
+            </dd></div>
+            <div><dt>Regression tests</dt><dd>
+              <ul>
+                <li>Scenario: an already linked module receives a new <code>--version</code>. Setup: existing <code>extensions.json</code> entry. Action: run <code>augx link &lt;module&gt; --version &lt;new&gt;</code>. Expected result: the stored version changes.</li>
+                <li>Scenario: relinking without <code>--version</code> preserves the current record. Setup: existing entry. Action: run the command again. Expected result: the version does not change unexpectedly.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Additional baseline tests</dt><dd>
+              <ul>
+                <li>Confirm the first-time link path still writes the expected config entry.</li>
+                <li>Confirm the existing mirror path still runs after the config update.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Acceptance criteria</dt><dd>
+              <ul>
+                <li><code>--version</code> updates an existing linked module.</li>
+                <li>Unrequested version changes do not occur.</li>
+                <li>Console output still clearly states whether the module was linked or updated.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Confidence</dt><dd>High</dd></div>
+          </dl>
+        </article>
+
+        <article id="issue-05" class="issue issue--core" data-issue-kind="core">
+          <header class="issue-header">
+            <p class="issue-number">Issue 5</p>
+            <h3>Placeholder commands advertise features that are not implemented</h3>
+            <span class="issue-kind-badge">Core</span>
+          </header>
+          <dl class="issue-details">
+            <div><dt>Title</dt><dd>Placeholder commands advertise features that are not implemented</dd></div>
+            <div><dt>Kind</dt><dd>Core</dd></div>
+            <div><dt>Priority</dt><dd>P5</dd></div>
+            <div><dt>Severity</dt><dd>Medium</dd></div>
+            <div><dt>Likelihood</dt><dd>Almost certain</dd></div>
+            <div><dt>Impacted area</dt><dd>Public CLI command implementation</dd></div>
+            <div><dt>Failure mode</dt><dd>The <code>create</code>, <code>pin</code>, <code>check-updates</code>, and <code>diff</code> commands print status text and then stop at <code>// Implementation</code>. The command tree exposes them as real features even though the core action does nothing useful.</dd></div>
+            <div><dt>Evidence or rationale</dt><dd>
+              <ul class="evidence-list">
+                <li><code>cli/src/cli.ts:261-305</code> contains the placeholder handlers for <code>create</code>, <code>pin</code>, <code>check-updates</code>, and <code>diff</code>.</li>
+                <li>The handlers emit user-facing text like <code>Creating new module</code> and <code>Checking for updates...</code> but never call a real implementation.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Why this matters</dt><dd>Exposed commands that do not do the advertised work erode trust and can send a future agent down the wrong path when it tries to automate setup, pinning, update checks, or diffs.</dd></div>
+            <div><dt>Recommended mitigation</dt><dd>Either implement the commands using the existing version and module helpers, or hide them from the public CLI until they are ready. Do not keep a visible no-op branch in production.</dd></div>
+            <div><dt>Implementation Prompt</dt><dd>
+              <p>Work in the current project and resolve the repository root yourself. Inspect <code>cli/src/cli.ts</code> and compare the placeholder branches with the already implemented <code>use</code>, <code>upgrade</code>, and <code>version-info</code> commands. Replace each placeholder with the smallest useful behavior the repository can support, or remove the command from the public surface if the feature is intentionally deferred. Preserve the existing option names and console tone. If a command is not yet supported, print a direct one-line explanation and exit with the existing nonzero code instead of leaving a fake success path.</p>
+              <p>Add or update tests so each command either performs the documented action or reports that the feature is unavailable. Keep unrelated commands unchanged. Run the CLI command tests that cover the affected branches and include the result of each command in the final report, including any unsupported-feature fallback text that remains in place.</p>
+            </dd></div>
+            <div><dt>Regression tests</dt><dd>
+              <ul>
+                <li>Scenario: each command reaches a real implementation or a deliberate unsupported-feature path. Setup: invoke <code>create</code>, <code>pin</code>, <code>check-updates</code>, and <code>diff</code> in a test harness. Expected result: no branch ends in a bare placeholder comment path.</li>
+                <li>Scenario: unsupported commands emit explicit fallback text. Setup: command intentionally disabled. Expected result: the user sees a direct explanation instead of a pseudo-success message.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Additional baseline tests</dt><dd>
+              <ul>
+                <li>Confirm nearby implemented commands still parse the same options.</li>
+                <li>Confirm no unrelated command output changed as part of the fix.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Acceptance criteria</dt><dd>
+              <ul>
+                <li>No public command body ends at a placeholder comment.</li>
+                <li>Every exposed command either works or is explicitly unavailable.</li>
+                <li>Help text and runtime behavior agree.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Confidence</dt><dd>High</dd></div>
+          </dl>
+        </article>
+
+        <article id="issue-06" class="issue issue--core" data-issue-kind="core">
+          <header class="issue-header">
+            <p class="issue-number">Issue 6</p>
+            <h3>MCP transport handling accepts http but execution rejects it</h3>
+            <span class="issue-kind-badge">Core</span>
+          </header>
+          <dl class="issue-details">
+            <div><dt>Title</dt><dd>MCP transport handling accepts http but execution rejects it</dd></div>
+            <div><dt>Kind</dt><dd>Core</dd></div>
+            <div><dt>Priority</dt><dd>P6</dd></div>
+            <div><dt>Severity</dt><dd>Medium</dd></div>
+            <div><dt>Likelihood</dt><dd>Likely</dd></div>
+            <div><dt>Impacted area</dt><dd>MCP configuration, execution, and discovery</dd></div>
+            <div><dt>Failure mode</dt><dd>The MCP config type and add command both accept <code>http</code>, but the execution and discovery paths reject anything other than <code>stdio</code>. A user can therefore save a server configuration that the CLI later refuses to use.</dd></div>
+            <div><dt>Evidence or rationale</dt><dd>
+              <ul class="evidence-list">
+                <li><code>cli/src/utils/mcp-integration.ts:12-18</code> defines <code>transport: 'stdio' | 'http'</code>.</li>
+                <li><code>cli/src/commands/mcp.ts:66-90</code> accepts an optional transport argument and writes it to the config.</li>
+                <li><code>cli/src/utils/mcp-integration.ts:116-133</code> and <code>285-298</code> reject every non-stdio transport.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Why this matters</dt><dd>The CLI advertises a capability that does not exist in the execution path. That is a configuration trap, and it creates avoidable support churn because the failure appears only after the server has already been saved.</dd></div>
+            <div><dt>Recommended mitigation</dt><dd>Choose one path and make the whole stack consistent. Either implement HTTP transport end to end, or narrow the public config and CLI so that only stdio is accepted. Do not keep the current split-brain state.</dd></div>
+            <div><dt>Implementation Prompt</dt><dd>
+              <p>Work in the current project and resolve the repository root yourself. Inspect <code>cli/src/utils/mcp-integration.ts</code>, <code>cli/src/commands/mcp.ts</code>, and the MCP command tests first. Decide whether the repository should truly support HTTP transport or should reject it up front. If HTTP is supported, implement the smallest end-to-end transport path that keeps stdio behavior unchanged. If HTTP is not supported, remove it from the public option surface and fail fast with a precise message such as <code>HTTP transport is not yet supported, use stdio</code>. Preserve the current Beads MCP stdio path and do not introduce a new transport abstraction unless it is necessary for the fix.</p>
+              <p>Add regression tests for accepted transport, rejected transport, and discovery error handling. Make sure the command either discovers and executes the server or provides a clear fallback explanation before any network or process work begins. In the final report, list the exact transport decision, the files changed, the commands run, and any remaining unsupported mode that was intentionally left out.</p>
+            </dd></div>
+            <div><dt>Regression tests</dt><dd>
+              <ul>
+                <li>Scenario: a stdio server still executes and discovers tools. Expected result: current behavior is unchanged.</li>
+                <li>Scenario: an HTTP server is either supported end to end or rejected immediately with a clear explanation. Expected result: no silent config mismatch remains.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Additional baseline tests</dt><dd>
+              <ul>
+                <li>Confirm <code>mcp list</code> still prints the configured servers.</li>
+                <li>Confirm the Beads MCP config remains readable from <code>.vscode/mcp.json</code> or the augment config path.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Acceptance criteria</dt><dd>
+              <ul>
+                <li>The config surface and runtime transport support are aligned.</li>
+                <li>No user can save a transport mode that the executor immediately rejects without explanation.</li>
+                <li>Stdio behavior remains intact.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Confidence</dt><dd>High</dd></div>
+          </dl>
+        </article>
+
+        <article id="issue-07" class="issue issue--core" data-issue-kind="core">
+          <header class="issue-header">
+            <p class="issue-number">Issue 7</p>
+            <h3>Project-agnostic validation only scans markdown and JSON</h3>
+            <span class="issue-kind-badge">Core</span>
+          </header>
+          <dl class="issue-details">
+            <div><dt>Title</dt><dd>Project-agnostic validation only scans markdown and JSON</dd></div>
+            <div><dt>Kind</dt><dd>Core</dd></div>
+            <div><dt>Priority</dt><dd>P7</dd></div>
+            <div><dt>Severity</dt><dd>Medium</dd></div>
+            <div><dt>Likelihood</dt><dd>Almost certain</dd></div>
+            <div><dt>Impacted area</dt><dd>Module validation and portability checks</dd></div>
+            <div><dt>Failure mode</dt><dd><code>validateProjectAgnostic</code> only descends into files ending with <code>.md</code> or <code>.json</code>. The repository contains many module files in other formats, so the scanner can miss hardcoded paths or URLs in TypeScript, JavaScript, YAML, shell, or Makefile content.</dd></div>
+            <div><dt>Evidence or rationale</dt><dd>
+              <ul class="evidence-list">
+                <li><code>cli/src/utils/module-system.ts:1101-1158</code> shows the <code>.md</code> and <code>.json</code> filter at <code>1144-1146</code>.</li>
+                <li>Representative non-scanned files include <code>augment-extensions/visual-design/types.ts</code>, <code>augment-extensions/coding-standards/c/src/template-engine.ts</code>, <code>augment-extensions/coding-standards/typescript/examples/monorepo-config/package.json</code>, and <code>augment-extensions/coding-standards/c/examples/kernel/Makefile</code>.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Why this matters</dt><dd>A module can still be project-specific even if the scanner ignores its non-markdown files. That weakens the portability guarantee and makes the validation command look stricter than it is.</dd></div>
+            <div><dt>Recommended mitigation</dt><dd>Expand the scan to the file types the repository actually uses, while preserving the current path and URL heuristics and excluding generated or binary content. Reuse the existing module discovery rules instead of introducing a separate parser for every format.</dd></div>
+            <div><dt>Implementation Prompt</dt><dd>
+              <p>Work in the current project and resolve the repository root yourself. Inspect <code>cli/src/utils/module-system.ts</code> and the module file layout under <code>augment-extensions/</code> first. Extend the project-agnostic scan so it covers the repository's real source file formats instead of hard-coding only markdown and JSON. Prefer a small allowlist that matches the current module tree, and keep the existing warning format, error accumulation, and recursion rules intact. Do not scan binary or generated files, and do not add a new parser stack unless the repository already has a canonical one.</p>
+              <p>Add tests that prove a hardcoded path in a <code>.ts</code> or <code>.js</code> file is detected, a safe markdown file still passes, and generated or binary files are not scanned. Verify the exact warning strings and make sure existing JSON and markdown coverage is unchanged. In the final report, list the file types you added, the commands run, and any excluded formats that were intentionally left out.</p>
+            </dd></div>
+            <div><dt>Regression tests</dt><dd>
+              <ul>
+                <li>Scenario: a hardcoded absolute path in TypeScript triggers a warning. Expected result: the scanner reports the path.</li>
+                <li>Scenario: a safe markdown file remains clean. Expected result: no false positive.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Additional baseline tests</dt><dd>
+              <ul>
+                <li>Confirm JSON files still scan exactly as before.</li>
+                <li>Confirm generated or binary files remain excluded from the scan.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Acceptance criteria</dt><dd>
+              <ul>
+                <li>The validation command covers the repository's real file mix.</li>
+                <li>Non-markdown and non-JSON source files are no longer invisible.</li>
+                <li>Existing warning wording stays stable.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Confidence</dt><dd>High</dd></div>
+          </dl>
+        </article>
+
+        <article id="issue-08" class="issue issue--core" data-issue-kind="core">
+          <header class="issue-header">
+            <p class="issue-number">Issue 8</p>
+            <h3>Pattern analysis returns an empty result set</h3>
+            <span class="issue-kind-badge">Core</span>
+          </header>
+          <dl class="issue-details">
+            <div><dt>Title</dt><dd>Pattern analysis returns an empty result set</dd></div>
+            <div><dt>Kind</dt><dd>Core</dd></div>
+            <div><dt>Priority</dt><dd>P8</dd></div>
+            <div><dt>Severity</dt><dd>Medium</dd></div>
+            <div><dt>Likelihood</dt><dd>Almost certain</dd></div>
+            <div><dt>Impacted area</dt><dd>Code analysis command coverage</dd></div>
+            <div><dt>Failure mode</dt><dd>The <code>patterns</code> branch in <code>code-analysis.ts</code> explicitly sets <code>result.patterns = []</code> and <code>result.issues = []</code>. That means the command claims to support pattern analysis but never returns any findings, even when the input code clearly contains repeated or recognizable structures.</dd></div>
+            <div><dt>Evidence or rationale</dt><dd>
+              <ul class="evidence-list">
+                <li><code>cli/src/commands/code-analysis.ts:81-108</code> contains the empty <code>patterns</code> case.</li>
+                <li><code>cli/src/cli.ts:550-556</code> exposes <code>patterns</code> as a supported analysis type.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Why this matters</dt><dd>Users selecting the patterns mode will believe the analyzer ran when it actually returned nothing. That hides signal in a command that is supposed to help with structural review.</dd></div>
+            <div><dt>Recommended mitigation</dt><dd>Implement the actual pattern finder using the repository's existing analysis style, or remove the mode until the feature exists. Keep the complexity, security, and dependency analysis modes unchanged.</dd></div>
+            <div><dt>Implementation Prompt</dt><dd>
+              <p>Work in the current project and resolve the repository root yourself. Inspect <code>cli/src/commands/code-analysis.ts</code>, the analysis type definitions, and the command registration in <code>cli/src/cli.ts</code>. Replace the empty pattern branch with the smallest useful analysis the repository can support, or disable the mode explicitly if that is the safer choice. Preserve the existing summary formatting, severity filtering, and non-pattern modes. Do not invent a new analysis framework or change the command contract more than necessary.</p>
+              <p>Add tests that prove at least one real pattern issue is emitted for a known fixture and that safe input still produces a clean result. Confirm the command still handles complexity, security, and dependency analysis exactly as before. Run the code-analysis command tests and include the exact before-and-after output in the final report.</p>
+            </dd></div>
+            <div><dt>Regression tests</dt><dd>
+              <ul>
+                <li>Scenario: a fixture with a repeated or recognizable pattern produces a non-empty issue list. Expected result: the command surfaces a real finding.</li>
+                <li>Scenario: a safe file remains clean. Expected result: no false positive from the new pattern logic.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Additional baseline tests</dt><dd>
+              <ul>
+                <li>Confirm the other analysis types still return their current results.</li>
+                <li>Confirm the command summary still counts files and issues correctly.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Acceptance criteria</dt><dd>
+              <ul>
+                <li><code>patterns</code> no longer returns an empty result by default.</li>
+                <li>Pattern analysis produces actionable output or is explicitly disabled.</li>
+                <li>Existing analysis modes remain unchanged.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Confidence</dt><dd>High</dd></div>
+          </dl>
+        </article>
+
+        <article id="issue-09" class="issue issue--core" data-issue-kind="core">
+          <header class="issue-header">
+            <p class="issue-number">Issue 9</p>
+            <h3>Self-remove promises a complete uninstall but only unlinks modules</h3>
+            <span class="issue-kind-badge">Core</span>
+          </header>
+          <dl class="issue-details">
+            <div><dt>Title</dt><dd>Self-remove promises a complete uninstall but only unlinks modules</dd></div>
+            <div><dt>Kind</dt><dd>Core</dd></div>
+            <div><dt>Priority</dt><dd>P9</dd></div>
+            <div><dt>Severity</dt><dd>Medium</dd></div>
+            <div><dt>Likelihood</dt><dd>Likely</dd></div>
+            <div><dt>Impacted area</dt><dd>Uninstall and project recovery workflow</dd></div>
+            <div><dt>Failure mode</dt><dd>The command description says it will completely remove Augment Extensions from the project, but the implementation preserves <code>.augment/</code>, preserves <code>extensions.json</code>, and keeps user-generated content. The public contract is broader than the actual cleanup.</dd></div>
+            <div><dt>Evidence or rationale</dt><dd>
+              <ul class="evidence-list">
+                <li><code>cli/src/cli.ts:293-298</code> describes <code>self-remove</code> as a complete removal.</li>
+                <li><code>cli/src/commands/self-remove.ts:27-36</code>, <code>39-46</code>, and <code>82-130</code> explicitly preserve project state that the description implies should disappear.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Why this matters</dt><dd>Users may rely on self-remove as a clean uninstall or troubleshooting reset and then discover that key project state remains behind. That breaks trust and can complicate recovery if they assume more was removed than actually was.</dd></div>
+            <div><dt>Recommended mitigation</dt><dd>Either rename and document the command as a safe unlink-only cleanup, or expand the removal logic to match the promise. Keep the dry-run and confirmation flow intact, and preserve user-generated content unless the command is explicitly meant to remove it.</dd></div>
+            <div><dt>Implementation Prompt</dt><dd>
+              <p>Work in the current project and resolve the repository root yourself. Inspect <code>cli/src/commands/self-remove.ts</code>, the <code>self-remove</code> registration in <code>cli/src/cli.ts</code>, and any install or cleanup docs before making changes. Decide whether this command is a full uninstall or a safe unlink-only cleanup. If it is intentionally partial, update the public description and fallback text so they name the preserved state explicitly. If it is meant to be complete, remove the project-owned artifacts that the repo actually creates, while leaving user content alone and keeping the dry-run preview accurate.</p>
+              <p>Add regression tests for dry-run, forced removal, and the no-op case where the project is not initialized. Keep the current confirmation prompts and exit codes, and do not broaden the cleanup to unrelated files. In the final report, state whether the command was renamed, narrowed, or expanded, and include the exact files removed or preserved.</p>
+            </dd></div>
+            <div><dt>Regression tests</dt><dd>
+              <ul>
+                <li>Scenario: dry-run shows the exact preserved and removed paths. Expected result: the command does not mutate the project.</li>
+                <li>Scenario: confirmed removal matches the documented scope. Expected result: the right project-owned files are removed and user content stays intact.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Additional baseline tests</dt><dd>
+              <ul>
+                <li>Confirm the not-initialized path still exits cleanly with the existing message.</li>
+                <li>Confirm the VS Code recommendations cleanup still happens when the file exists.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Acceptance criteria</dt><dd>
+              <ul>
+                <li>The command description matches the actual scope.</li>
+                <li>Dry-run and force behavior remain predictable.</li>
+                <li>Users are not misled about what remains after the command runs.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Confidence</dt><dd>High</dd></div>
+          </dl>
+        </article>
+
+        <article id="issue-10" class="issue issue--core" data-issue-kind="core">
+          <header class="issue-header">
+            <p class="issue-number">Issue 10</p>
+            <h3>Local version comparison is not semver-aware</h3>
+            <span class="issue-kind-badge">Core</span>
+          </header>
+          <dl class="issue-details">
+            <div><dt>Title</dt><dd>Local version comparison is not semver-aware</dd></div>
+            <div><dt>Kind</dt><dd>Core</dd></div>
+            <div><dt>Priority</dt><dd>P10</dd></div>
+            <div><dt>Severity</dt><dd>Medium</dd></div>
+            <div><dt>Likelihood</dt><dd>Possible</dd></div>
+            <div><dt>Impacted area</dt><dd>Version comparison and upgrade accuracy</dd></div>
+            <div><dt>Failure mode</dt><dd><code>compareVersions</code> in <code>update.ts</code> splits version strings on dots and casts each part to a number. That is fragile for prerelease tags, build metadata, or other semver details, even though the file already imports <code>semver</code> for the CLI package update path.</dd></div>
+            <div><dt>Evidence or rationale</dt><dd>
+              <ul class="evidence-list">
+                <li><code>cli/src/commands/update.ts:160-214</code> contains the local comparator and the module-update branch that uses it.</li>
+                <li><code>cli/src/commands/update.ts:125-130</code> already uses <code>semver.eq</code> and <code>semver.gt</code> for the CLI package update path.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Why this matters</dt><dd>Version ordering errors can cause an unnecessary upgrade, a missed upgrade, or a misleading downgrade warning. That makes the module upgrade path hard to trust for anything but the simplest <code>x.y.z</code> versions.</dd></div>
+            <div><dt>Recommended mitigation</dt><dd>Reuse the repository's canonical semantic-version helper instead of the local dot-split comparator. Keep the user-facing output and dry-run semantics unchanged.</dd></div>
+            <div><dt>Implementation Prompt</dt><dd>
+              <p>Work in the current project and resolve the repository root yourself. Inspect <code>cli/src/commands/update.ts</code> and the version helpers in <code>cli/src/utils/module-system.ts</code> before changing code. Replace the local dot-split comparison with the repository's canonical semver comparison so prerelease and metadata versions are ordered correctly. Preserve the current module update flow, console output, and JSON mode. Do not alter the CLI package update path unless the same semver correction is needed there for consistency.</p>
+              <p>Add regression tests for prerelease, build metadata, and mixed-digit versions that currently compare incorrectly. Keep the ordinary <code>x.y.z</code> path stable. Run the update command tests and include the exact before-and-after comparison examples in the final report.</p>
+            </dd></div>
+            <div><dt>Regression tests</dt><dd>
+              <ul>
+                <li>Scenario: a prerelease version sorts below its release version. Expected result: the update path chooses the correct ordering.</li>
+                <li>Scenario: build metadata does not break comparison. Expected result: the command treats semver-equivalent versions correctly.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Additional baseline tests</dt><dd>
+              <ul>
+                <li>Confirm ordinary three-part versions still compare the same way.</li>
+                <li>Confirm the CLI package update path still uses its existing semver branch.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Acceptance criteria</dt><dd>
+              <ul>
+                <li>Version ordering no longer depends on a naive dot split.</li>
+                <li>Module update decisions are semver-aware.</li>
+                <li>Existing user-facing output remains stable.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Confidence</dt><dd>Medium</dd></div>
+          </dl>
+        </article>
+
+        <article id="issue-11" class="issue issue--additional" data-issue-kind="additional">
+          <header class="issue-header">
+            <p class="issue-number">Issue 11</p>
+            <h3>Augment version compatibility is treated as always compatible</h3>
+            <span class="issue-kind-badge">Additional</span>
+          </header>
+          <dl class="issue-details">
+            <div><dt>Title</dt><dd>Augment version compatibility is treated as always compatible</dd></div>
+            <div><dt>Kind</dt><dd>Additional</dd></div>
+            <div><dt>Priority</dt><dd>P11</dd></div>
+            <div><dt>Severity</dt><dd>Medium</dd></div>
+            <div><dt>Likelihood</dt><dd>Likely</dd></div>
+            <div><dt>Impacted area</dt><dd>Upgrade safety and compatibility reporting</dd></div>
+            <div><dt>Failure mode</dt><dd>When <code>augmentMinVersion</code> is present, <code>checkCompatibility</code> still sets the Augment result to <code>compatible: true</code> with a <code>current: 'unknown'</code> marker and a note saying the version check is not implemented.</dd></div>
+            <div><dt>Evidence or rationale</dt><dd>
+              <ul class="evidence-list">
+                <li><code>cli/src/core/compatibility-checker.ts:109-118</code> shows the unimplemented branch.</li>
+                <li>The class already checks Node and TypeScript versions, so the Augment check is the only one that fails open.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Why this matters</dt><dd>An upgrade can appear safe even when the target runtime requirement was never evaluated. That is a direct compatibility risk for modules that depend on a minimum Augment version.</dd></div>
+            <div><dt>Recommended mitigation</dt><dd>Implement real Augment version detection if the repository already exposes a source of truth, or fail closed until the runtime can be checked honestly.</dd></div>
+            <div><dt>Implementation Prompt</dt><dd>
+              <p>Work in the current project and resolve the repository root yourself. Inspect <code>cli/src/core/compatibility-checker.ts</code>, <code>cli/src/commands/upgrade.ts</code>, and the module metadata paths that declare compatibility requirements. Add a real Augment version source if one already exists, or return an explicit unsupported result that the caller treats as a warning or error instead of pretending the check passed. Keep the Node and TypeScript checks unchanged, and preserve the current error and warning surfaces for the upgrade command.</p>
+              <p>Add tests for compatible, incompatible, and unknown runtime versions. Ensure the upgrade flow surfaces the compatibility result clearly and does not silently proceed on an unverified requirement. Include the exact fallback message you expect users to see when the Augment version cannot be determined.</p>
+            </dd></div>
+            <div><dt>Regression tests</dt><dd>
+              <ul>
+                <li>Scenario: a module with a minimum Augment version fails when the runtime is too old. Expected result: the compatibility result is not forced to true.</li>
+                <li>Scenario: a module with no Augment requirement still behaves as before. Expected result: the existing compatibility checks remain unchanged.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Additional baseline tests</dt><dd>
+              <ul>
+                <li>Confirm Node and TypeScript version checks still work.</li>
+                <li>Confirm the upgrade command prints the same warning style for other incompatibilities.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Acceptance criteria</dt><dd>
+              <ul>
+                <li>Augment version checks no longer fail open.</li>
+                <li>The command does not imply compatibility when the version was never checked.</li>
+                <li>Existing Node and TypeScript compatibility behavior remains intact.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Confidence</dt><dd>High</dd></div>
+          </dl>
+        </article>
+
+        <article id="issue-12" class="issue issue--additional" data-issue-kind="additional">
+          <header class="issue-header">
+            <p class="issue-number">Issue 12</p>
+            <h3>Specialized inspection handlers return empty payloads</h3>
+            <span class="issue-kind-badge">Additional</span>
+          </header>
+          <dl class="issue-details">
+            <div><dt>Title</dt><dd>Specialized inspection handlers return empty payloads</dd></div>
+            <div><dt>Kind</dt><dd>Additional</dd></div>
+            <div><dt>Priority</dt><dd>P12</dd></div>
+            <div><dt>Severity</dt><dd>Medium</dd></div>
+            <div><dt>Likelihood</dt><dd>Almost certain</dd></div>
+            <div><dt>Impacted area</dt><dd>Module inspection and content extraction</dd></div>
+            <div><dt>Failure mode</dt><dd>The workflow and coding-standards handlers promise specialized extraction but their helper methods always return empty arrays. As a result, the enhanced inspection path carries handler metadata but no actual extracted content.</dd></div>
+            <div><dt>Evidence or rationale</dt><dd>
+              <ul class="evidence-list">
+                <li><code>cli/src/utils/inspection-handlers.ts:102-149</code> returns <code>[]</code> from <code>extractWorkflowSteps</code>.</li>
+                <li><code>cli/src/utils/inspection-handlers.ts:154-200</code> returns <code>[]</code> from <code>extractStandards</code>.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Why this matters</dt><dd>The repository advertises specialized inspection, but the downstream agent gets no extracted workflow or standards data. That makes the enhancement effectively decorative.</dd></div>
+            <div><dt>Recommended mitigation</dt><dd>Implement the smallest reliable extractors for the module layouts already used in this repository, and fall back to the default handler output if extraction fails.</dd></div>
+            <div><dt>Implementation Prompt</dt><dd>
+              <p>Work in the current project and resolve the repository root yourself. Inspect <code>cli/src/utils/inspection-handlers.ts</code>, the plugin system, and any workflow or coding-standards fixtures before editing. Replace the placeholder extractors with the smallest repo-consistent parsers that can pull meaningful content from the file layouts already present here. Preserve the default handler result and the handler metadata contract. Do not invent a new inspection API or widen the feature beyond the module types the repository already knows about.</p>
+              <p>Add tests that prove one workflow module and one coding-standards module produce non-empty extracted data, and add a fallback test for modules without the expected structure. If extraction fails unexpectedly, keep the default handler output and report the failure clearly instead of returning an empty success payload. Include the exact fallback text in the final report if one is needed.</p>
+            </dd></div>
+            <div><dt>Regression tests</dt><dd>
+              <ul>
+                <li>Scenario: a workflow module returns extracted steps. Expected result: the result is non-empty and the metadata stays intact.</li>
+                <li>Scenario: a coding-standards module returns extracted standards. Expected result: the result is non-empty and the handler still reports success.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Additional baseline tests</dt><dd>
+              <ul>
+                <li>Confirm the default handler still returns the original module summary.</li>
+                <li>Confirm modules without the expected files still fall back cleanly.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Acceptance criteria</dt><dd>
+              <ul>
+                <li>Specialized handlers return real extracted data.</li>
+                <li>Empty arrays are no longer the default success payload.</li>
+                <li>The fallback behavior remains safe and explicit.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Confidence</dt><dd>High</dd></div>
+          </dl>
+        </article>
+
+        <article id="issue-13" class="issue issue--additional" data-issue-kind="additional">
+          <header class="issue-header">
+            <p class="issue-number">Issue 13</p>
+            <h3>Catalog auto-sync hook is gated on a repo-specific path</h3>
+            <span class="issue-kind-badge">Additional</span>
+          </header>
+          <dl class="issue-details">
+            <div><dt>Title</dt><dd>Catalog auto-sync hook is gated on a repo-specific path</dd></div>
+            <div><dt>Kind</dt><dd>Additional</dd></div>
+            <div><dt>Priority</dt><dd>P13</dd></div>
+            <div><dt>Severity</dt><dd>Low</dd></div>
+            <div><dt>Likelihood</dt><dd>Possible</dd></div>
+            <div><dt>Impacted area</dt><dd>Git hook automation and catalog sync</dd></div>
+            <div><dt>Failure mode</dt><dd><strong>Testable assumption:</strong> the generated hook only runs <code>augx catalog</code> when the current shell directory contains a nested <code>augment-extensions</code> folder. Because the command installs the hook into the current repository's <code>.git/hooks</code> directory, this guard appears likely to skip updates in consumer layouts that do not mirror the source tree.</dd></div>
+            <div><dt>Evidence or rationale</dt><dd>
+              <ul class="evidence-list">
+                <li><code>cli/src/utils/catalog-sync.ts:32-43</code> writes the shell snippet with <code>if [ -d augment-extensions ]; then</code>.</li>
+                <li><code>cli/src/commands/catalog.ts:61-75</code> installs the hook into the current project's <code>.git/hooks</code> directory.</li>
+                <li>This repository itself has an <code>augment-extensions/</code> tree, but the downstream consumer layout was not directly observed, so the risk is inferential.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Why this matters</dt><dd>If the guard never passes outside this repository, the hook looks configured but never syncs the catalog. That is a subtle automation failure because the hook installs successfully while the actual update path remains inert.</dd></div>
+            <div><dt>Recommended mitigation</dt><dd>Make the hook condition reflect the actual install layout, or remove the directory guard if the surrounding command already guarantees a safe execution context. If the hook must skip in some layouts, print an explicit skip message so the user knows why catalog sync did not run.</dd></div>
+            <div><dt>Implementation Prompt</dt><dd>
+              <p>Work in the current project and resolve the repository root yourself. Inspect <code>cli/src/utils/catalog-sync.ts</code> and <code>cli/src/commands/catalog.ts</code> first. Confirm whether the hook is supposed to work only in this repository or also in downstream consumer projects. If consumer projects are in scope, replace the hard-coded <code>augment-extensions</code> guard with a check that matches the actual installed layout. If the hook is intentionally layout-specific, make the skip text explicit so the user knows the sync was bypassed. Do not change the core catalog generation logic unless the guard depends on it.</p>
+              <p>Add a temporary-project test that installs the hook with and without the expected directory structure and confirms the intended behavior. Keep the hook removal path and executable bit unchanged. Because this issue is a testable assumption, record exactly how you confirmed or disproved it in the final report.</p>
+            </dd></div>
+            <div><dt>Regression tests</dt><dd>
+              <ul>
+                <li>Scenario: the hook runs in a layout that matches the expected project structure. Expected result: <code>augx catalog</code> is invoked.</li>
+                <li>Scenario: the hook is skipped in a layout that should not auto-sync. Expected result: the skip is explicit and intentional, not silent.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Additional baseline tests</dt><dd>
+              <ul>
+                <li>Confirm hook removal still strips only the catalog block.</li>
+                <li>Confirm the catalog update command still works when invoked directly.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Acceptance criteria</dt><dd>
+              <ul>
+                <li>The hook guard matches the intended install layout.</li>
+                <li>Any skipped auto-sync path is explicitly explained.</li>
+                <li>The issue is either confirmed or disproved with a layout test.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Confidence</dt><dd>Low</dd></div>
+          </dl>
+        </article>
+
+        <article id="issue-14" class="issue issue--additional" data-issue-kind="additional">
+          <header class="issue-header">
+            <p class="issue-number">Issue 14</p>
+            <h3>Visual-design types and vendor data are out of sync</h3>
+            <span class="issue-kind-badge">Additional</span>
+          </header>
+          <dl class="issue-details">
+            <div><dt>Title</dt><dd>Visual-design types and vendor data are out of sync</dd></div>
+            <div><dt>Kind</dt><dd>Additional</dd></div>
+            <div><dt>Priority</dt><dd>P14</dd></div>
+            <div><dt>Severity</dt><dd>Medium</dd></div>
+            <div><dt>Likelihood</dt><dd>Likely</dd></div>
+            <div><dt>Impacted area</dt><dd>Visual-design module type safety</dd></div>
+            <div><dt>Failure mode</dt><dd>The <code>ColorPalette</code> and <code>VendorStyle</code> interfaces in <code>types.ts</code> do not match the concrete Google Modern object or the selector return types. The runtime data shape and the type declarations drifted apart, which is why the visual-design tests and typechecks report mismatches.</dd></div>
+            <div><dt>Evidence or rationale</dt><dd>
+              <ul class="evidence-list">
+                <li><code>augment-extensions/visual-design/types.ts:43-58</code> expects a different <code>ColorPalette</code> shape than the Google Modern object provides.</li>
+                <li><code>augment-extensions/visual-design/types.ts:245-294</code> defines <code>VendorStyle</code> and <code>StyleSelector</code> in a way that conflicts with the test expectations.</li>
+                <li><code>augment-extensions/visual-design/domains/web-page-styles/google-modern.ts:27-550</code> exports data that does not line up with the interface details.</li>
+                <li><code>augment-extensions/visual-design/style-selector.ts:49-103</code> returns <code>VendorStyle | DomainStyle</code>, while <code>augment-extensions/visual-design/__tests__/style-selector.test.ts</code> immediately accesses <code>style.vendor</code>.</li>
+                <li>Prior diagnostics reported typecheck failures in <code>vendor-styles.test.ts</code> and <code>style-selector.test.ts</code>.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Why this matters</dt><dd>Type drift in a design-system module makes both downstream consumers and the repository's own tests unreliable. The module can no longer act as a trustworthy source of typed design presets if the declared shapes and concrete objects disagree.</dd></div>
+            <div><dt>Recommended mitigation</dt><dd>Align the runtime objects and interfaces instead of widening the contract to hide the mismatch. Keep the three vendor presets and the selector behavior intact from a consumer point of view.</dd></div>
+            <div><dt>Implementation Prompt</dt><dd>
+              <p>Work in the current project and resolve the repository root yourself. Inspect <code>augment-extensions/visual-design/types.ts</code>, <code>augment-extensions/visual-design/style-selector.ts</code>, <code>augment-extensions/visual-design/domains/web-page-styles/google-modern.ts</code>, and the related tests first. Make the interfaces describe the actual runtime objects or adjust the runtime objects to match the existing contract, but do not paper over the issue by weakening both sides. Preserve the vendor selector behavior and the vendor presets as they are consumed today. Avoid unrelated refactors or a new type system.</p>
+              <p>Update the tests so they assert the intended contract rather than failing on drift. Run the visual-design test subset and the repository's type or test command that exercises those files. In the final report, include the exact mismatches you corrected, the commands you ran, and any remaining shape differences that were intentionally left alone.</p>
+            </dd></div>
+            <div><dt>Regression tests</dt><dd>
+              <ul>
+                <li>Scenario: the Google Modern vendor object satisfies the declared interface. Expected result: typecheck and integration tests pass for the vendor data.</li>
+                <li>Scenario: the selector returns a value the tests can inspect safely. Expected result: the chosen object exposes the expected properties without type assertions hiding the mismatch.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Additional baseline tests</dt><dd>
+              <ul>
+                <li>Confirm Microsoft Fluent and Amazon Cloudscape still satisfy the same contract.</li>
+                <li>Confirm the default vendor priority order stays unchanged.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Acceptance criteria</dt><dd>
+              <ul>
+                <li>The visual-design module typecheck reflects the runtime objects.</li>
+                <li>The vendor style tests no longer fail because of structural drift.</li>
+                <li>The selector contract remains clear to downstream consumers.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Confidence</dt><dd>High</dd></div>
+          </dl>
+        </article>
+
+        <article id="issue-15" class="issue issue--additional" data-issue-kind="additional">
+          <header class="issue-header">
+            <p class="issue-number">Issue 15</p>
+            <h3>The test harness is split across incompatible runners</h3>
+            <span class="issue-kind-badge">Additional</span>
+          </header>
+          <dl class="issue-details">
+            <div><dt>Title</dt><dd>The test harness is split across incompatible runners</dd></div>
+            <div><dt>Kind</dt><dd>Additional</dd></div>
+            <div><dt>Priority</dt><dd>P15</dd></div>
+            <div><dt>Severity</dt><dd>Medium</dd></div>
+            <div><dt>Likelihood</dt><dd>Likely</dd></div>
+            <div><dt>Impacted area</dt><dd>Test infrastructure and release confidence</dd></div>
+            <div><dt>Failure mode</dt><dd>The repository splits validation across Jest, Vitest, and a standalone <code>tsx</code> runner, but the configs do not agree on test locations or runtime expectations. Jest misses top-level <code>tests/*.test.ts</code> files, Vitest carries a deprecated pool setting, and the standalone <code>test-all.ts</code> runner can fail before meaningful assertions run.</dd></div>
+            <div><dt>Evidence or rationale</dt><dd>
+              <ul class="evidence-list">
+                <li><code>package.json:24-41</code> defines <code>test</code>, <code>test:vitest</code>, and <code>test:all</code> as separate entry points.</li>
+                <li><code>jest.config.js:1-23</code> limits Jest to <code>**/__tests__/**/*.test.ts</code>.</li>
+                <li><code>vitest.config.ts:1-50</code> includes <code>tests/**/*.test.ts</code> and carries the deprecated <code>poolOptions</code> block.</li>
+                <li><code>test-all.ts:1-26</code> hard-codes the loader and CLI path assumptions.</li>
+                <li><code>npm test -- --runInBand tests/export-e2e.test.ts ...</code> reported no tests found, and <code>npm run test:vitest</code> emitted a Vitest 4 deprecation warning.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Why this matters</dt><dd>A brittle validation story lets regressions slip through and wastes time on false negatives. If each runner sees a different world, nobody can trust the result of "run the tests" as a real readiness check.</dd></div>
+            <div><dt>Recommended mitigation</dt><dd>Pick one canonical runner per test family and make the scripts, config globs, and helper harnesses agree. Remove deprecated config that will break on the next runtime upgrade.</dd></div>
+            <div><dt>Implementation Prompt</dt><dd>
+              <p>Work in the current project and resolve the repository root yourself. Inspect <code>package.json</code>, <code>jest.config.js</code>, <code>vitest.config.ts</code>, and <code>test-all.ts</code> first. Decide which runner is canonical for each test directory, then make the scripts and glob patterns match that decision. Preserve the existing tests, but eliminate the "no tests found" class of failures and the deprecated Vitest configuration that is already warning in this environment. Do not introduce a new test framework or a broader harness rewrite.</p>
+              <p>Add a sanity check or script-level assertion that proves the chosen globs are reachable. Keep the existing command names stable unless a script is intentionally retired, and document any retired command in the report. Run the relevant Jest and Vitest subsets and the standalone harness if it remains in use. In the final report, include the exact runner split you chose and the commands that now pass.</p>
+            </dd></div>
+            <div><dt>Regression tests</dt><dd>
+              <ul>
+                <li>Scenario: the top-level <code>tests/</code> directory is visible to the runner that owns it. Expected result: no "no tests found" error for legitimate test files.</li>
+                <li>Scenario: the standalone harness reaches the CLI entry point without blowing up on config mismatch. Expected result: meaningful assertions run before any failure is reported.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Additional baseline tests</dt><dd>
+              <ul>
+                <li>Confirm the Jest-owned <code>__tests__</code> files still run where they did before.</li>
+                <li>Confirm the Vitest deprecation warning is removed or intentionally documented.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Acceptance criteria</dt><dd>
+              <ul>
+                <li>Each test directory is owned by a clear runner.</li>
+                <li>Configuration no longer disagrees with the file layout.</li>
+                <li>Validation commands are reliable enough to trust in release work.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Confidence</dt><dd>High</dd></div>
+          </dl>
+        </article>
+
+        <article id="issue-16" class="issue issue--additional" data-issue-kind="additional">
+          <header class="issue-header">
+            <p class="issue-number">Issue 16</p>
+            <h3>Versioned module commands depend on VERSION files that most modules do not have</h3>
+            <span class="issue-kind-badge">Additional</span>
+          </header>
+          <dl class="issue-details">
+            <div><dt>Title</dt><dd>Versioned module commands depend on VERSION files that most modules do not have</dd></div>
+            <div><dt>Kind</dt><dd>Additional</dd></div>
+            <div><dt>Priority</dt><dd>P16</dd></div>
+            <div><dt>Severity</dt><dd>Low</dd></div>
+            <div><dt>Likelihood</dt><dd>Almost certain</dd></div>
+            <div><dt>Impacted area</dt><dd><code>use</code> and <code>upgrade</code> version resolution</dd></div>
+            <div><dt>Failure mode</dt><dd><code>VersionManager.getVersion</code> only reads a standalone <code>VERSION</code> file, <code>version-resolver.ts</code> only discovers one such file, and the repository itself only exposes one <code>VERSION</code> file under the TypeScript coding standards module. Most modules carry their version in <code>module.json</code>, so the versioned commands can fail or exit early for the majority of modules.</dd></div>
+            <div><dt>Evidence or rationale</dt><dd>
+              <ul class="evidence-list">
+                <li><code>cli/src/core/version-manager.ts:43-104</code> reads and writes <code>VERSION</code>.</li>
+                <li><code>cli/src/core/version-resolver.ts:139-167</code> only discovers a single <code>VERSION</code> file.</li>
+                <li><code>cli/src/commands/use.ts:13-96</code> and <code>cli/src/commands/upgrade.ts:15-120</code> depend on the version manager.</li>
+                <li><code>rg --files augment-extensions -g 'VERSION'</code> returned only <code>augment-extensions/coding-standards/typescript/VERSION</code>, while <code>augment-extensions/coding-standards/typescript/module.json:3</code> also carries a version value.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Why this matters</dt><dd>The versioned commands will report missing or unknown version information for modules that only use the metadata shape already present elsewhere in the repository. That makes <code>use</code> and <code>upgrade</code> brittle for the majority of modules.</dd></div>
+            <div><dt>Recommended mitigation</dt><dd>Make version loading and updating consistent with the repository's actual source of truth. Either maintain <code>VERSION</code> files for every module or read the version metadata already stored in the module manifests.</dd></div>
+            <div><dt>Implementation Prompt</dt><dd>
+              <p>Work in the current project and resolve the repository root yourself. Inspect <code>cli/src/core/version-manager.ts</code>, <code>cli/src/core/version-resolver.ts</code>, <code>cli/src/commands/use.ts</code>, <code>cli/src/commands/upgrade.ts</code>, and the module metadata layout first. Make the version commands read the repository's real version source of truth instead of assuming every module has a standalone <code>VERSION</code> file. Keep the current latest, pin, and compatibility behavior intact where possible, but ensure modules without a <code>VERSION</code> file can still be inspected or upgraded if version metadata exists elsewhere.</p>
+              <p>Add regression tests for a module with only <code>module.json</code>, a module with both files, and a module with invalid version data. Preserve the existing console output and JSON mode. If the repository intentionally supports only one version layout, state that explicitly in the final report instead of letting the commands fail silently.</p>
+            </dd></div>
+            <div><dt>Regression tests</dt><dd>
+              <ul>
+                <li>Scenario: a module with only <code>module.json</code> can still be inspected or upgraded if the repository supports that layout. Expected result: the command does not abort only because <code>VERSION</code> is missing.</li>
+                <li>Scenario: a module with both <code>VERSION</code> and <code>module.json</code> stays consistent. Expected result: version loading and saving agree.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Additional baseline tests</dt><dd>
+              <ul>
+                <li>Confirm invalid version data still fails clearly.</li>
+                <li>Confirm the existing JSON and console output remain stable.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Acceptance criteria</dt><dd>
+              <ul>
+                <li>Versioned commands work for the repository's real module layout.</li>
+                <li>Missing <code>VERSION</code> files no longer break the common case unless that is intentionally unsupported.</li>
+                <li>The supported version source of truth is clearly documented.</li>
+              </ul>
+            </dd></div>
+            <div><dt>Confidence</dt><dd>High</dd></div>
+          </dl>
+        </article>
+      </section>
+
+      <section id="scope-notes" class="section-shell">
+        <h2>Scope Notes And Limitations</h2>
+        <div class="note-card">
+          <h3>What this report does and does not claim</h3>
+          <ul class="scope-list">
+            <li>No existing pre-mortem file was present in <code>./ai-prompts/</code>, so this report uses an original print-ready visual system instead of copying a prior layout.</li>
+            <li>The report is limited to the current working tree and local Git evidence. It does not invent remote state, unpublished issues, or unobserved consumer repository layouts.</li>
+            <li>Issue 13 is intentionally marked as a testable assumption because the runtime layout outside this checkout was not directly validated.</li>
+            <li>Every other issue is grounded in local code inspection, repository configuration, or a reproducible command result.</li>
+            <li>The report avoids external fonts, scripts, images, analytics, and network requests, and it remains understandable with CSS disabled.</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer-card">
+      <p><strong>Repository identity:</strong> @mytechtoday/augment-extensions on branch main.</p>
+      <p><strong>Generation timestamp:</strong> 2026-09-07 14:39:23 local time.</p>
+      <p><strong>Output path:</strong> <code>./ai-prompts/pre-mortem-2026-09-07-14-39-23.html</code>.</p>
+      <p><strong>Report scope:</strong> current working tree only, with 10 Core issues and 6 Additional issues selected from repository evidence.</p>
+    </footer>
+  </div>
+</body>
+</html>

@@ -10,6 +10,7 @@ export interface UpgradeCommandOptions {
   force?: boolean;
   json?: boolean;
   dryRun?: boolean;
+  compatibilityChecker?: CompatibilityChecker;
 }
 
 export async function upgradeCommand(moduleName: string, options: UpgradeCommandOptions = {}): Promise<void> {
@@ -82,8 +83,10 @@ export async function upgradeCommand(moduleName: string, options: UpgradeCommand
       return;
     }
 
-    const compatChecker = new CompatibilityChecker();
+    const compatChecker = options.compatibilityChecker ?? new CompatibilityChecker();
     const compatResult = compatChecker.checkCompatibility(module.path);
+    const hasCompatibilityErrors = compatResult.errors.length > 0;
+    const shouldBlockOnCompatibility = hasCompatibilityErrors && !force;
 
     if (!json) {
       console.log(chalk.bold.blue(`\n📦 Upgrade Available for ${moduleName}\n`));
@@ -112,9 +115,21 @@ export async function upgradeCommand(moduleName: string, options: UpgradeCommand
 
         if (!force) {
           console.log(chalk.red('\n  Use --force to upgrade anyway'));
-          process.exit(1);
         }
       }
+    }
+
+    if (shouldBlockOnCompatibility) {
+      if (json) {
+        console.log(JSON.stringify({
+          error: 'Compatibility checks failed',
+          module: moduleName,
+          currentVersion,
+          latestVersion,
+          compatibility: compatResult
+        }, null, 2));
+      }
+      process.exit(1);
     }
 
     if (dryRun) {
@@ -161,7 +176,8 @@ export async function upgradeCommand(moduleName: string, options: UpgradeCommand
         newVersion: latestVersion,
         breaking: latestResult.metadata.breaking,
         deprecated: latestResult.metadata.deprecated,
-        configUpdated: upgraded
+        configUpdated: upgraded,
+        compatibility: compatResult
       }, null, 2));
       return;
     }
@@ -177,6 +193,10 @@ export async function upgradeCommand(moduleName: string, options: UpgradeCommand
     console.log(chalk.gray('  - Test your project with the new version'));
     console.log(chalk.gray(`  - Run: augx show ${moduleName} to see details`));
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('process.exit(')) {
+      throw error;
+    }
+
     if (options.json) {
       console.log(JSON.stringify({ error: String(error) }, null, 2));
     } else {

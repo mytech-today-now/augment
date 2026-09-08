@@ -1,4 +1,3 @@
-import inquirer from 'inquirer';
 import { filterCollectionsToRepoModules, filterLinkedModulesToRepoModules, filterModulesForGui } from '../../cli/src/commands/gui';
 import type { Collection, Module } from '../../cli/src/utils/module-system';
 

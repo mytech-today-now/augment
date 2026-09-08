@@ -1,7 +1,6 @@
 import chalk from 'chalk';
 import * as fs from 'fs';
 import * as path from 'path';
-import inquirer from 'inquirer';
 import {
   installCharacterCountRule,
   installEmDashRule,
@@ -11,6 +10,7 @@ import {
   InstallRulesResult
 } from '../utils/install-rules';
 import { extractCommandHelp } from '../utils/extractCommandHelp';
+import { getInteractivePrompt, type InteractivePrompt } from '../utils/interactive-prompt';
 
 interface InitOptions {
   fromSubmodule?: boolean;
@@ -28,6 +28,9 @@ interface OptionalRuleSpec {
   successLabel: string;
   ruleFilename: string;
 }
+
+const INIT_PROMPT_UNAVAILABLE_MESSAGE =
+  'Interactive prompts are unavailable in this terminal. Re-run `augx init` from an interactive TTY.';
 
 const OPTIONAL_RULES: OptionalRuleSpec[] = [
   {
@@ -56,7 +59,10 @@ const OPTIONAL_RULES: OptionalRuleSpec[] = [
   }
 ];
 
-async function maybeInstallOptionalRules(options: InitOptions): Promise<void> {
+async function maybeInstallOptionalRules(
+  options: InitOptions,
+  promptApi: InteractivePrompt | null
+): Promise<void> {
   if (options.optionalRules === false) {
     console.log(chalk.gray('\nSkipping optional rule prompts (--no-optional-rules).'));
     return;
@@ -71,8 +77,13 @@ async function maybeInstallOptionalRules(options: InitOptions): Promise<void> {
     }, {});
     console.log(chalk.gray('\nAccepting all optional rule prompts (--yes).'));
   } else {
+    if (!promptApi) {
+      console.log(chalk.yellow(INIT_PROMPT_UNAVAILABLE_MESSAGE));
+      return;
+    }
+
     console.log(chalk.bold.blue('\nOptional rules\n'));
-    answers = await inquirer.prompt(
+    answers = await promptApi.prompt(
       OPTIONAL_RULES.map(rule => ({
         type: 'confirm',
         name: rule.key,
@@ -107,9 +118,17 @@ export async function initCommand(options: InitOptions): Promise<void> {
     // Check if already initialized
     const augmentDir = path.join(process.cwd(), '.augment');
     const extensionsConfig = path.join(augmentDir, 'extensions.json');
+    const hasExistingConfig = fs.existsSync(extensionsConfig);
+    const needsPromptSupport = hasExistingConfig || (!options.yes && options.optionalRules !== false);
+    const promptApi = needsPromptSupport ? await getInteractivePrompt() : null;
 
-    if (fs.existsSync(extensionsConfig)) {
-      const { overwrite } = await inquirer.prompt([
+    if (needsPromptSupport && !promptApi) {
+      console.log(chalk.yellow(INIT_PROMPT_UNAVAILABLE_MESSAGE));
+      return;
+    }
+
+    if (hasExistingConfig) {
+      const { overwrite } = await promptApi!.prompt([
         {
           type: 'confirm',
           name: 'overwrite',
@@ -219,7 +238,7 @@ Check \`.augment/extensions.json\` for currently linked modules.
 
     // Prompt for and conditionally install the optional rules
     // (ASCII-only-code, UTF-8 in non-code, no-emoji)
-    await maybeInstallOptionalRules(options);
+    await maybeInstallOptionalRules(options, promptApi);
 
     // Extract command help for workflow tools
     console.log(chalk.blue('\n📖 Extracting command help for workflow tools...\n'));

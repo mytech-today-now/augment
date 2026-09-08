@@ -1,5 +1,4 @@
 import chalk from 'chalk';
-import inquirer from 'inquirer';
 import * as fs from 'fs';
 import * as path from 'path';
 import { discoverModules, discoverCollections, Module, Collection } from '../utils/module-system';
@@ -12,6 +11,7 @@ import {
   Skill,
   SKILL_CATEGORIES
 } from '../utils/skill-system';
+import { getInteractivePrompt, type InteractivePrompt } from '../utils/interactive-prompt';
 import { linkCommand } from './link';
 import { unlinkCommand } from './unlink';
 
@@ -30,6 +30,9 @@ interface CollectionChoice {
   value: string;
   modules: string[];
 }
+
+const GUI_PROMPT_UNAVAILABLE_MESSAGE =
+  'Interactive prompts are unavailable in this terminal. Re-run `augx gui` from an interactive TTY.';
 
 /**
  * Display keyboard shortcuts help screen
@@ -59,6 +62,20 @@ function getRepoModuleNameSet(modules: Module[]): Set<string> {
   return new Set(modules.map(module => module.fullName));
 }
 
+async function ensureGuiPrompt(promptApi?: InteractivePrompt): Promise<InteractivePrompt | null> {
+  if (promptApi) {
+    return promptApi;
+  }
+
+  const loadedPrompt = await getInteractivePrompt();
+  if (!loadedPrompt) {
+    console.log(chalk.yellow(GUI_PROMPT_UNAVAILABLE_MESSAGE));
+    return null;
+  }
+
+  return loadedPrompt;
+}
+
 export function filterModulesForGui(modules: Module[]): Module[] {
   return modules.filter(module => module.metadata.type !== 'writing-standards');
 }
@@ -77,7 +94,10 @@ export function filterCollectionsToRepoModules(collections: Collection[], module
   });
 }
 
-export async function guiCommand(options: GuiOptions = {}): Promise<void> {
+export async function guiCommand(
+  options: GuiOptions = {},
+  promptApi?: InteractivePrompt
+): Promise<void> {
   try {
     console.log(chalk.blue('\n🎨 Augment Extensions Module Manager\n'));
     console.log(chalk.gray('Press Ctrl+H or ? for keyboard shortcuts\n'));
@@ -123,8 +143,13 @@ export async function guiCommand(options: GuiOptions = {}): Promise<void> {
       );
     }
 
+    const interactivePrompt = await ensureGuiPrompt(promptApi);
+    if (!interactivePrompt) {
+      return;
+    }
+
     // Main menu
-    const { action } = await inquirer.prompt([
+    const { action } = await interactivePrompt.prompt([
       {
         type: 'list',
         name: 'action',
@@ -148,15 +173,15 @@ export async function guiCommand(options: GuiOptions = {}): Promise<void> {
     if (action === 'help') {
       displayKeyboardHelp();
       // Return to main menu after showing help
-      return await guiCommand(options);
+      return await guiCommand(options, interactivePrompt);
     } else if (action === 'link-modules') {
-      await linkModulesInteractive(modules, linkedModules);
+      await linkModulesInteractive(modules, linkedModules, interactivePrompt);
     } else if (action === 'link-collection') {
-      await linkCollectionInteractive(collections, linkedModules);
+      await linkCollectionInteractive(collections, linkedModules, interactivePrompt);
     } else if (action === 'search') {
-      await searchModulesInteractive(modules, linkedModules);
+      await searchModulesInteractive(modules, linkedModules, interactivePrompt);
     } else if (action === 'browse-skills') {
-      await browseSkillsInteractive();
+      await browseSkillsInteractive(interactivePrompt);
     }
 
   } catch (error: any) {
@@ -165,7 +190,11 @@ export async function guiCommand(options: GuiOptions = {}): Promise<void> {
   }
 }
 
-async function linkModulesInteractive(modules: Module[], linkedModules: string[]): Promise<void> {
+async function linkModulesInteractive(
+  modules: Module[],
+  linkedModules: string[],
+  promptApi: InteractivePrompt
+): Promise<void> {
   if (modules.length === 0) {
     console.log(chalk.yellow('No modules available in this repository.'));
     return;
@@ -180,7 +209,7 @@ async function linkModulesInteractive(modules: Module[], linkedModules: string[]
   console.log(chalk.gray('Tip: Use Ctrl+A to select all, Ctrl+D to deselect all\n'));
   console.log(chalk.gray('Tip: Uncheck modules to unlink them\n'));
 
-  const { selectedModules } = await inquirer.prompt([
+  const { selectedModules } = await promptApi.prompt([
     {
       type: 'checkbox',
       name: 'selectedModules',
@@ -233,7 +262,11 @@ async function linkModulesInteractive(modules: Module[], linkedModules: string[]
   }
 }
 
-async function linkCollectionInteractive(collections: Collection[], linkedModules: string[]): Promise<void> {
+async function linkCollectionInteractive(
+  collections: Collection[],
+  linkedModules: string[],
+  promptApi: InteractivePrompt
+): Promise<void> {
   if (collections.length === 0) {
     console.log(chalk.yellow('No collections available.'));
     return;
@@ -244,7 +277,7 @@ async function linkCollectionInteractive(collections: Collection[], linkedModule
     value: c.fullName
   }));
 
-  const { selectedCollection } = await inquirer.prompt([
+  const { selectedCollection } = await promptApi.prompt([
     {
       type: 'list',
       name: 'selectedCollection',
@@ -267,7 +300,7 @@ async function linkCollectionInteractive(collections: Collection[], linkedModule
     console.log(chalk.gray(`  - ${module.id}`));
   }
 
-  const { confirm } = await inquirer.prompt([
+  const { confirm } = await promptApi.prompt([
     {
       type: 'confirm',
       name: 'confirm',
@@ -293,8 +326,12 @@ async function linkCollectionInteractive(collections: Collection[], linkedModule
   console.log(chalk.green('\n✓ Collection linking complete!'));
 }
 
-async function searchModulesInteractive(modules: Module[], linkedModules: string[]): Promise<void> {
-  const { searchTerm } = await inquirer.prompt([
+async function searchModulesInteractive(
+  modules: Module[],
+  linkedModules: string[],
+  promptApi: InteractivePrompt
+): Promise<void> {
+  const { searchTerm } = await promptApi.prompt([
     {
       type: 'input',
       name: 'searchTerm',
@@ -337,7 +374,7 @@ async function searchModulesInteractive(modules: Module[], linkedModules: string
     console.log();
   }
 
-  const { linkNow } = await inquirer.prompt([
+  const { linkNow } = await promptApi.prompt([
     {
       type: 'confirm',
       name: 'linkNow',
@@ -349,7 +386,7 @@ async function searchModulesInteractive(modules: Module[], linkedModules: string
   ]);
 
   if (linkNow) {
-    await linkModulesInteractive(results, linkedModules);
+    await linkModulesInteractive(results, linkedModules, promptApi);
   }
 }
 
@@ -369,7 +406,7 @@ function discoverSkillsQuiet(): Skill[] {
   }
 }
 
-export async function browseSkillsInteractive(): Promise<void> {
+export async function browseSkillsInteractive(promptApi: InteractivePrompt): Promise<void> {
   const skills = discoverSkillsQuiet();
 
   if (skills.length === 0) {
@@ -389,7 +426,7 @@ export async function browseSkillsInteractive(): Promise<void> {
     { name: 'Back', value: '__back__' }
   ];
 
-  const { category } = await inquirer.prompt([
+  const { category } = await promptApi.prompt([
     {
       type: 'list',
       name: 'category',
@@ -425,7 +462,7 @@ export async function browseSkillsInteractive(): Promise<void> {
     });
   skillChoices.push({ name: 'Back', value: '__back__' });
 
-  const { skillId } = await inquirer.prompt([
+  const { skillId } = await promptApi.prompt([
     {
       type: 'list',
       name: 'skillId',
@@ -436,7 +473,7 @@ export async function browseSkillsInteractive(): Promise<void> {
   ]);
 
   if (skillId === '__back__') {
-    return await browseSkillsInteractive();
+    return await browseSkillsInteractive(promptApi);
   }
 
   const skill = filtered.find(s => s.metadata.id === skillId);
@@ -445,14 +482,14 @@ export async function browseSkillsInteractive(): Promise<void> {
     return;
   }
 
-  await skillActionInteractive(skill);
+  await skillActionInteractive(skill, promptApi);
 }
 
-async function skillActionInteractive(skill: Skill): Promise<void> {
+async function skillActionInteractive(skill: Skill, promptApi: InteractivePrompt): Promise<void> {
   const { id, name } = skill.metadata;
   console.log(chalk.blue(`\n\u{1F9E0} ${name} (${id})`));
 
-  const { action } = await inquirer.prompt([
+  const { action } = await promptApi.prompt([
     {
       type: 'list',
       name: 'action',
@@ -467,7 +504,7 @@ async function skillActionInteractive(skill: Skill): Promise<void> {
   ]);
 
   if (action === 'back') {
-    return await browseSkillsInteractive();
+    return await browseSkillsInteractive(promptApi);
   }
 
   if (action === 'view') {
@@ -475,10 +512,10 @@ async function skillActionInteractive(skill: Skill): Promise<void> {
   } else if (action === 'validate') {
     validateSkillInGui(skill);
   } else if (action === 'inject') {
-    await injectSkillInGui(skill);
+    await injectSkillInGui(skill, promptApi);
   }
 
-  const { again } = await inquirer.prompt([
+  const { again } = await promptApi.prompt([
     {
       type: 'confirm',
       name: 'again',
@@ -488,9 +525,9 @@ async function skillActionInteractive(skill: Skill): Promise<void> {
   ]);
 
   if (again) {
-    await skillActionInteractive(skill);
+    await skillActionInteractive(skill, promptApi);
   } else {
-    await browseSkillsInteractive();
+    await browseSkillsInteractive(promptApi);
   }
 }
 
@@ -534,7 +571,7 @@ function validateSkillInGui(skill: Skill): void {
   }
 }
 
-async function injectSkillInGui(skill: Skill): Promise<void> {
+async function injectSkillInGui(skill: Skill, promptApi: InteractivePrompt): Promise<void> {
   const loaded = loadSkillDynamic(skill.metadata.id, {
     resolveDependencies: true,
     maxTokens: 50000,
@@ -554,7 +591,7 @@ async function injectSkillInGui(skill: Skill): Promise<void> {
   console.log(`Dependencies:  ${depIds.length === 0 ? '(none)' : depIds.join(', ')}`);
   console.log(chalk.gray('-'.repeat(60)));
 
-  const { destination } = await inquirer.prompt([
+  const { destination } = await promptApi.prompt([
     {
       type: 'list',
       name: 'destination',
@@ -579,7 +616,7 @@ async function injectSkillInGui(skill: Skill): Promise<void> {
   }
 
   const defaultPath = path.join('.augment', 'injections', `${skill.metadata.id}.md`);
-  const { outPath } = await inquirer.prompt([
+  const { outPath } = await promptApi.prompt([
     {
       type: 'input',
       name: 'outPath',

@@ -1,6 +1,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { compareSemanticVersions, satisfiesVersionRange } from '../utils/module-system';
+import {
+  compareSemanticVersions,
+  isValidSemanticVersion,
+  satisfiesVersionRange
+} from '../utils/module-system';
 import { execSync } from 'child_process';
 
 /**
@@ -40,6 +44,12 @@ export interface CompatibilityMetadata {
   breaking?: boolean;
 }
 
+type CompatibilityCheckerOptions = {
+  augmentVersion?: string | null;
+};
+
+const UNKNOWN_AUGMENT_VERSION_MESSAGE = 'Unable to determine current Augment version; compatibility cannot be verified';
+
 /**
  * CompatibilityChecker class
  * Validates module compatibility with runtime environment
@@ -47,10 +57,12 @@ export interface CompatibilityMetadata {
 export class CompatibilityChecker {
   private nodeVersion: string;
   private typescriptVersion: string | null;
+  private augmentVersion: string | null;
 
-  constructor() {
+  constructor(options: CompatibilityCheckerOptions = {}) {
     this.nodeVersion = process.version.replace('v', '');
     this.typescriptVersion = this.detectTypeScriptVersion();
+    this.augmentVersion = options.augmentVersion ?? null;
   }
 
   /**
@@ -108,13 +120,11 @@ export class CompatibilityChecker {
 
     // Check Augment version (if available)
     if (metadata.augmentMinVersion) {
-      // TODO: Implement Augment version detection
-      details.augment = {
-        required: metadata.augmentMinVersion,
-        current: 'unknown',
-        compatible: true,
-        message: 'Augment version check not implemented'
-      };
+      const augmentCheck = this.checkAugmentVersion(metadata.augmentMinVersion);
+      details.augment = augmentCheck;
+      if (!augmentCheck.compatible) {
+        errors.push(augmentCheck.message || 'Augment version incompatible');
+      }
     }
 
     return {
@@ -172,23 +182,161 @@ export class CompatibilityChecker {
   }
 
   /**
+   * Check Augment version compatibility
+   * @param requiredVersion Minimum required Augment version or range
+   * @returns Version check result
+   */
+  private checkAugmentVersion(requiredVersion: string): VersionCheckResult {
+    if (!this.augmentVersion || !isValidSemanticVersion(this.augmentVersion)) {
+      return {
+        required: requiredVersion,
+        current: 'unknown',
+        compatible: false,
+        message: UNKNOWN_AUGMENT_VERSION_MESSAGE
+      };
+    }
+
+    try {
+      const compatible = this.isVersionRequirementSatisfied(this.augmentVersion, requiredVersion);
+
+      return {
+        required: requiredVersion,
+        current: this.augmentVersion,
+        compatible,
+        message: compatible
+          ? undefined
+          : `Augment ${requiredVersion} or higher required (current: ${this.augmentVersion})`
+      };
+    } catch {
+      return {
+        required: requiredVersion,
+        current: this.augmentVersion,
+        compatible: false,
+        message: `Invalid Augment version requirement: ${requiredVersion}`
+      };
+    }
+  }
+
+  /**
+   * Check whether a version satisfies a requirement string
+   * @param currentVersion Current version string
+   * @param requiredVersion Required version or range
+   * @returns True when the current version satisfies the requirement
+   */
+  private isVersionRequirementSatisfied(currentVersion: string, requiredVersion: string): boolean {
+    const normalizedRequirement = requiredVersion.trim();
+
+    if (/^[~^<>=]/.test(normalizedRequirement)) {
+      return satisfiesVersionRange(currentVersion, normalizedRequirement);
+    }
+
+    return compareSemanticVersions(currentVersion, normalizedRequirement) >= 0;
+  }
+
+  /**
    * Load compatibility metadata from module
    * @param modulePath Path to the module directory
    * @returns Compatibility metadata or null
    */
   private loadCompatibilityMetadata(modulePath: string): CompatibilityMetadata | null {
     const metadataFile = path.join(modulePath, 'metadata.json');
+    const moduleFile = path.join(modulePath, 'module.json');
+    const compatibility: CompatibilityMetadata = {};
 
-    if (!fs.existsSync(metadataFile)) {
+    const metadataJson = this.readJsonFile(metadataFile);
+    if (metadataJson) {
+      Object.assign(compatibility, this.extractCompatibilityFields(metadataJson.compatibility));
+    }
+
+    const moduleJson = this.readJsonFile(moduleFile);
+    if (moduleJson) {
+      const moduleCompatibility = this.extractCompatibilityFields(moduleJson.compatibility);
+      if (moduleCompatibility.augmentMinVersion && !compatibility.augmentMinVersion) {
+        compatibility.augmentMinVersion = moduleCompatibility.augmentMinVersion;
+      }
+
+      if (!compatibility.augmentMinVersion) {
+        const augmentEngine = this.extractAugmentEngine(moduleJson);
+        if (augmentEngine) {
+          compatibility.augmentMinVersion = augmentEngine;
+        }
+      }
+    }
+
+    return Object.keys(compatibility).length > 0 ? compatibility : null;
+  }
+
+  /**
+   * Read and parse a JSON file if it exists
+   * @param filePath File path to parse
+   * @returns Parsed JSON object or null
+   */
+  private readJsonFile(filePath: string): Record<string, unknown> | null {
+    if (!fs.existsSync(filePath)) {
       return null;
     }
 
     try {
-      const content = JSON.parse(fs.readFileSync(metadataFile, 'utf-8'));
-      return content.compatibility || null;
-    } catch (error) {
+      const parsed = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      if (typeof parsed === 'object' && parsed !== null) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
       return null;
     }
+
+    return null;
+  }
+
+  /**
+   * Extract supported compatibility fields from a manifest object
+   * @param value Raw compatibility value
+   * @returns Normalized compatibility metadata
+   */
+  private extractCompatibilityFields(value: unknown): CompatibilityMetadata {
+    const compatibility: CompatibilityMetadata = {};
+
+    if (!value || typeof value !== 'object') {
+      return compatibility;
+    }
+
+    const record = value as Record<string, unknown>;
+
+    if (typeof record.augmentMinVersion === 'string') {
+      compatibility.augmentMinVersion = record.augmentMinVersion;
+    }
+    if (typeof record.nodeMinVersion === 'string') {
+      compatibility.nodeMinVersion = record.nodeMinVersion;
+    }
+    if (typeof record.typescriptMinVersion === 'string') {
+      compatibility.typescriptMinVersion = record.typescriptMinVersion;
+    }
+    if (typeof record.deprecated === 'boolean') {
+      compatibility.deprecated = record.deprecated;
+    }
+    if (typeof record.deprecationMessage === 'string') {
+      compatibility.deprecationMessage = record.deprecationMessage;
+    }
+    if (typeof record.breaking === 'boolean') {
+      compatibility.breaking = record.breaking;
+    }
+
+    return compatibility;
+  }
+
+  /**
+   * Extract an Augment runtime requirement from module.json engines
+   * @param moduleJson Parsed module.json content
+   * @returns Augment version requirement or null
+   */
+  private extractAugmentEngine(moduleJson: Record<string, unknown>): string | null {
+    const engines = moduleJson.engines;
+    if (!engines || typeof engines !== 'object') {
+      return null;
+    }
+
+    const augment = (engines as Record<string, unknown>).augment;
+    return typeof augment === 'string' ? augment : null;
   }
 
   /**

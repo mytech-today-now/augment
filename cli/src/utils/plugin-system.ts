@@ -130,7 +130,7 @@ export class PluginLoader {
    */
   getHandlerForType(moduleType: string): InspectionHandler | undefined {
     const handlers = Array.from(this.handlers.values())
-      .filter(h => h.supportedTypes.includes(moduleType))
+      .filter(h => h.supportedTypes.includes(moduleType) || h.supportedTypes.includes('*'))
       .sort((a, b) => (b.priority || 0) - (a.priority || 0));
 
     return handlers[0];

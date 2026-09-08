@@ -1073,6 +1073,63 @@ export function calculateModuleCharacterCount(modulePath: string): number {
   return totalChars;
 }
 
+// Keep project-agnostic scans focused on the text-based module file types that
+// actually ship in this repository.
+const PROJECT_AGNOSTIC_SCAN_EXTENSIONS = new Set([
+  '.md',
+  '.json',
+  '.ts',
+  '.js',
+  '.css',
+  '.html',
+  '.yaml',
+  '.ps1',
+  '.psm1',
+  '.php',
+  '.py',
+  '.go',
+  '.c',
+  '.qs',
+  '.sh',
+  '.txt',
+  '.dts'
+]);
+
+const PROJECT_AGNOSTIC_SCAN_FILENAMES = new Set([
+  'Makefile',
+  'LICENSE',
+  'VERSION',
+  '.gitignore'
+]);
+
+const PROJECT_AGNOSTIC_GENERATED_DIRECTORY_NAMES = new Set([
+  'dist',
+  'build',
+  'out',
+  'coverage',
+  'node_modules',
+  '.next'
+]);
+
+function isGeneratedModuleFile(filePath: string, modulePath: string): boolean {
+  const relativePath = path.relative(modulePath, filePath);
+  const segments = relativePath.split(path.sep);
+  return segments.some(segment => PROJECT_AGNOSTIC_GENERATED_DIRECTORY_NAMES.has(segment));
+}
+
+function shouldScanProjectAgnosticFile(filePath: string, modulePath: string): boolean {
+  if (isGeneratedModuleFile(filePath, modulePath)) {
+    return false;
+  }
+
+  const fileName = path.basename(filePath);
+  if (PROJECT_AGNOSTIC_SCAN_FILENAMES.has(fileName)) {
+    return true;
+  }
+
+  return PROJECT_AGNOSTIC_SCAN_EXTENSIONS.has(path.extname(fileName));
+}
+
 /**
  * Validate module is project-agnostic (no hardcoded paths or URLs)
  */
@@ -1119,7 +1176,7 @@ export function validateProjectAgnostic(modulePath: string): ValidationResult {
 
       if (entry.isDirectory()) {
         scanDirectory(fullPath);
-      } else if (entry.isFile() && (entry.name.endsWith('.md') || entry.name.endsWith('.json'))) {
+      } else if (entry.isFile() && shouldScanProjectAgnosticFile(fullPath, modulePath)) {
         scanFile(fullPath);
       }
     }

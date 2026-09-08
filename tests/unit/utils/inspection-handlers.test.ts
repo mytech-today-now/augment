@@ -4,13 +4,30 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import {
   BaseInspectionHandler,
+  CodingStandardsHandler,
   DefaultInspectionHandler,
   HandlerOptions,
-  HandlerResult
-} from '../inspection-handlers';
-import { Module } from '../module-system';
+  HandlerResult,
+  WorkflowInspectionHandler
+} from '@cli/utils/inspection-handlers';
+import { loadModule, Module } from '@cli/utils/module-system';
+import { PluginLoader } from '@cli/utils/plugin-system';
+
+const FALLBACK_MESSAGE = 'Specialized extraction failed; using default inspection output.';
+const WORKFLOW_FIXTURE_PATH = path.join(process.cwd(), 'augment-extensions', 'workflows', 'database');
+const TYPESCRIPT_FIXTURE_PATH = path.join(process.cwd(), 'augment-extensions', 'coding-standards', 'typescript');
+
+function loadFixtureModule(modulePath: string): Module {
+  const module = loadModule(modulePath);
+
+  expect(module).not.toBeNull();
+  return module!;
+}
 
 describe('Inspection Handlers', () => {
   describe('BaseInspectionHandler', () => {
@@ -138,6 +155,98 @@ describe('Inspection Handlers', () => {
       expect(result.metadata?.processingTime).toBeDefined();
       expect(result.metadata?.processingTime).toBeGreaterThanOrEqual(0);
       expect(result.metadata?.processingTime).toBeLessThan(1000); // Should be fast
+    });
+  });
+
+  describe('PluginLoader integration', () => {
+    it('should prefer specialized handlers and keep the wildcard default handler available', () => {
+      const loader = new PluginLoader();
+      const defaultHandler = new DefaultInspectionHandler();
+      const workflowHandler = new WorkflowInspectionHandler();
+      const standardsHandler = new CodingStandardsHandler();
+
+      loader.registerHandler(defaultHandler);
+      loader.registerHandler(workflowHandler);
+      loader.registerHandler(standardsHandler);
+
+      expect(loader.getHandlerForType('workflow')).toBe(workflowHandler);
+      expect(loader.getHandlerForType('coding-standards')).toBe(standardsHandler);
+      expect(loader.getHandlerForType('domain-rules')).toBe(defaultHandler);
+    });
+  });
+
+  describe('WorkflowInspectionHandler', () => {
+    it('should extract workflow steps from the real workflow fixture', async () => {
+      const module = loadFixtureModule(WORKFLOW_FIXTURE_PATH);
+      const handler = new WorkflowInspectionHandler();
+
+      const result = await handler.handle(module, {});
+
+      expect(result.success).toBe(true);
+      expect(result.metadata?.handlerId).toBe('workflow-handler');
+      expect(result.metadata?.moduleType).toBe(module.metadata.type);
+      expect(result.data.workflowSteps).toBeDefined();
+      expect(result.data.workflowSteps.length).toBeGreaterThan(0);
+      expect(result.data.workflowSteps.some((step: string) => step.includes('Database Selection Workflow'))).toBe(true);
+      expect(result.data.rules).toEqual(module.rules);
+      expect(result.data.examples).toEqual(module.examples);
+    });
+
+    it('should fall back to the default module summary when the layout is missing', async () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'inspection-handler-fallback-'));
+      const metadata = {
+        name: 'missing-layout',
+        version: '1.0.0',
+        displayName: 'Missing Layout',
+        description: 'Empty workflow module',
+        type: 'workflow'
+      } as any;
+
+      try {
+        fs.writeFileSync(path.join(tempDir, 'module.json'), JSON.stringify(metadata, null, 2));
+
+        const module = {
+          fullName: 'workflow/missing-layout',
+          path: tempDir,
+          metadata,
+          rules: [],
+          examples: []
+        } as Module;
+
+        const result = await new WorkflowInspectionHandler().handle(module, {});
+
+        expect(result.success).toBe(false);
+        expect(result.data).toEqual({
+          module: module.fullName,
+          type: 'workflow',
+          version: '1.0.0',
+          description: 'Empty workflow module',
+          rules: [],
+          examples: []
+        });
+        expect(result.error).toBe(FALLBACK_MESSAGE);
+        expect(result.metadata?.handlerId).toBe('workflow-handler');
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  describe('CodingStandardsHandler', () => {
+    it('should extract standards from the real coding-standards fixture', async () => {
+      const module = loadFixtureModule(TYPESCRIPT_FIXTURE_PATH);
+      const handler = new CodingStandardsHandler();
+
+      const result = await handler.handle(module, {});
+
+      expect(result.success).toBe(true);
+      expect(result.metadata?.handlerId).toBe('coding-standards-handler');
+      expect(result.metadata?.moduleType).toBe(module.metadata.type);
+      expect(result.data.standards).toBeDefined();
+      expect(result.data.standards.length).toBeGreaterThan(0);
+      expect(result.data.standards.some((standard: string) => standard.includes('TypeScript Naming Conventions'))).toBe(true);
+      expect(result.data.rules).toEqual(module.rules);
+      expect(result.data.examples).toEqual(module.examples);
     });
   });
 });

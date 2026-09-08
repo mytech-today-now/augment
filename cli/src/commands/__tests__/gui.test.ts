@@ -5,16 +5,16 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import inquirer from 'inquirer';
 import { guiCommand } from '../gui';
 import * as moduleSystem from '../../utils/module-system';
 import * as linkCommand from '../link';
+import { getInteractivePrompt, type InteractivePrompt } from '../../utils/interactive-prompt';
 
 // Mock dependencies
 jest.mock('fs');
-jest.mock('inquirer');
 jest.mock('../../utils/module-system');
 jest.mock('../link');
+jest.mock('../../utils/interactive-prompt');
 jest.mock('chalk', () => ({
   default: {
     blue: (str: string) => str,
@@ -27,6 +27,9 @@ jest.mock('chalk', () => ({
       blue: (str: string) => str
     }
   },
+  bold: {
+    blue: (str: string) => str
+  },
   blue: (str: string) => str,
   green: (str: string) => str,
   red: (str: string) => str,
@@ -36,9 +39,16 @@ jest.mock('chalk', () => ({
 }));
 
 const mockFs = fs as jest.Mocked<typeof fs>;
-const mockInquirer = inquirer as jest.Mocked<typeof inquirer>;
-const mockModuleSystem = moduleSystem as jest.Mocked<typeof moduleSystem>;
+const mockModuleSystem = moduleSystem as jest.Mocked<typeof moduleSystem> & {
+  discoverModules: jest.Mock;
+  discoverCollections: jest.Mock;
+};
 const mockLinkCommand = linkCommand as jest.Mocked<typeof linkCommand>;
+const mockGetInteractivePrompt = getInteractivePrompt as jest.MockedFunction<typeof getInteractivePrompt>;
+const mockPrompt = jest.fn();
+const interactivePrompt: InteractivePrompt = {
+  prompt: mockPrompt as InteractivePrompt['prompt']
+};
 
 describe('GUI Components', () => {
   let consoleLogSpy: jest.SpyInstance;
@@ -50,6 +60,9 @@ describe('GUI Components', () => {
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
     processExitSpy = jest.spyOn(process, 'exit').mockImplementation() as any;
     jest.clearAllMocks();
+    mockPrompt.mockReset();
+    mockGetInteractivePrompt.mockReset();
+    mockGetInteractivePrompt.mockResolvedValue(interactivePrompt);
   });
 
   afterEach(() => {
@@ -77,14 +90,14 @@ describe('GUI Components', () => {
       mockModuleSystem.discoverModules.mockReturnValue(modules);
       mockModuleSystem.discoverCollections.mockReturnValue([]);
 
-      mockInquirer.prompt.mockResolvedValueOnce({ action: 'link-modules' })
+      mockPrompt.mockResolvedValueOnce({ action: 'link-modules' })
         .mockResolvedValueOnce({ selectedModules: ['coding-standards/html', 'coding-standards/css'] });
 
       mockLinkCommand.linkCommand.mockResolvedValue(undefined);
 
       await guiCommand();
 
-      expect(mockInquirer.prompt).toHaveBeenCalledWith(
+      expect(mockPrompt).toHaveBeenCalledWith(
         expect.arrayContaining([
           expect.objectContaining({
             type: 'checkbox',
@@ -108,12 +121,12 @@ describe('GUI Components', () => {
       mockModuleSystem.discoverModules.mockReturnValue(modules);
       mockModuleSystem.discoverCollections.mockReturnValue([]);
 
-      mockInquirer.prompt.mockResolvedValueOnce({ action: 'link-modules' })
+      mockPrompt.mockResolvedValueOnce({ action: 'link-modules' })
         .mockResolvedValueOnce({ selectedModules: [] });
 
       await guiCommand();
 
-      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('No modules selected'));
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('No changes made.'));
     });
 
     it('should show already linked modules as checked', async () => {
@@ -138,13 +151,27 @@ describe('GUI Components', () => {
       mockModuleSystem.discoverModules.mockReturnValue(modules);
       mockModuleSystem.discoverCollections.mockReturnValue([]);
 
-      mockInquirer.prompt.mockResolvedValueOnce({ action: 'link-modules' })
+      mockPrompt.mockResolvedValueOnce({ action: 'link-modules' })
         .mockResolvedValueOnce({ selectedModules: ['coding-standards/html'] });
 
       await guiCommand();
 
       expect(mockLinkCommand.linkCommand).not.toHaveBeenCalled();
-      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('already linked'));
+      expect(mockPrompt).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: 'checkbox',
+            name: 'selectedModules',
+            choices: expect.arrayContaining([
+              expect.objectContaining({
+                value: 'coding-standards/html',
+                checked: true
+              })
+            ])
+          })
+        ])
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('No changes made.'));
     });
   });
 
@@ -167,7 +194,7 @@ describe('GUI Components', () => {
       mockModuleSystem.discoverModules.mockReturnValue(modules);
       mockModuleSystem.discoverCollections.mockReturnValue([]);
 
-      mockInquirer.prompt.mockResolvedValueOnce({ action: 'search' })
+      mockPrompt.mockResolvedValueOnce({ action: 'search' })
         .mockResolvedValueOnce({ searchTerm: 'html' })
         .mockResolvedValueOnce({ linkNow: false });
 
@@ -195,7 +222,7 @@ describe('GUI Components', () => {
       mockModuleSystem.discoverModules.mockReturnValue(modules);
       mockModuleSystem.discoverCollections.mockReturnValue([]);
 
-      mockInquirer.prompt.mockResolvedValueOnce({ action: 'search' })
+      mockPrompt.mockResolvedValueOnce({ action: 'search' })
         .mockResolvedValueOnce({ searchTerm: 'workflow' })
         .mockResolvedValueOnce({ linkNow: false });
 
@@ -223,7 +250,7 @@ describe('GUI Components', () => {
       mockModuleSystem.discoverModules.mockReturnValue(modules);
       mockModuleSystem.discoverCollections.mockReturnValue([]);
 
-      mockInquirer.prompt.mockResolvedValueOnce({ action: 'search' })
+      mockPrompt.mockResolvedValueOnce({ action: 'search' })
         .mockResolvedValueOnce({ searchTerm: 'web' })
         .mockResolvedValueOnce({ linkNow: false });
 
@@ -246,7 +273,7 @@ describe('GUI Components', () => {
       mockModuleSystem.discoverModules.mockReturnValue(modules);
       mockModuleSystem.discoverCollections.mockReturnValue([]);
 
-      mockInquirer.prompt.mockResolvedValueOnce({ action: 'search' })
+      mockPrompt.mockResolvedValueOnce({ action: 'search' })
         .mockResolvedValueOnce({ searchTerm: 'nonexistent' })
         .mockResolvedValueOnce({ linkNow: false });
 
@@ -265,7 +292,7 @@ describe('GUI Components', () => {
       mockModuleSystem.discoverModules.mockReturnValue([]);
       mockModuleSystem.discoverCollections.mockReturnValue([]);
 
-      mockInquirer.prompt.mockResolvedValueOnce({ action: 'help' })
+      mockPrompt.mockResolvedValueOnce({ action: 'help' })
         .mockResolvedValueOnce({ action: 'exit' });
 
       await guiCommand();
@@ -283,11 +310,29 @@ describe('GUI Components', () => {
       mockModuleSystem.discoverModules.mockReturnValue([]);
       mockModuleSystem.discoverCollections.mockReturnValue([]);
 
-      mockInquirer.prompt.mockResolvedValueOnce({ action: 'exit' });
+      mockPrompt.mockResolvedValueOnce({ action: 'exit' });
 
       await guiCommand();
 
       expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Ctrl+H'));
+    });
+
+    it('should fall back cleanly when prompt support is unavailable', async () => {
+      const config = { modules: [] };
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readFileSync.mockReturnValue(JSON.stringify(config));
+      mockModuleSystem.discoverModules.mockReturnValue([]);
+      mockModuleSystem.discoverCollections.mockReturnValue([]);
+      mockGetInteractivePrompt.mockResolvedValueOnce(null);
+
+      await guiCommand();
+
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Interactive prompts are unavailable in this terminal')
+      );
+      expect(mockPrompt).not.toHaveBeenCalled();
+      expect(processExitSpy).not.toHaveBeenCalled();
     });
 
     it('should provide navigation instructions in checkbox prompts', async () => {
@@ -304,12 +349,12 @@ describe('GUI Components', () => {
       mockModuleSystem.discoverModules.mockReturnValue(modules);
       mockModuleSystem.discoverCollections.mockReturnValue([]);
 
-      mockInquirer.prompt.mockResolvedValueOnce({ action: 'link-modules' })
+      mockPrompt.mockResolvedValueOnce({ action: 'link-modules' })
         .mockResolvedValueOnce({ selectedModules: [] });
 
       await guiCommand();
 
-      expect(mockInquirer.prompt).toHaveBeenCalledWith(
+      expect(mockPrompt).toHaveBeenCalledWith(
         expect.arrayContaining([
           expect.objectContaining({
             message: expect.stringContaining('↑↓')

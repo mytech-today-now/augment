@@ -4,6 +4,7 @@ import { readFile, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { TestEnvironment } from '../../helpers/test-env';
 import { ModuleLoader } from '@cli/core/module-loader';
+import { CompatibilityChecker } from '@cli/core/compatibility-checker';
 import {
   createCommand,
   pinCommand,
@@ -125,6 +126,52 @@ describe('module management commands', () => {
     return module;
   }
 
+  async function seedVersionedModuleWithCompatibility(
+    name: string,
+    version: string,
+    compatibility: Record<string, unknown>,
+    description = `Test module: ${name}`
+  ) {
+    const module = await seedVersionedModule(name, version, description);
+    await writeFile(
+      join(module.path, 'metadata.json'),
+      JSON.stringify({
+        compatibility
+      }, null, 2)
+    );
+    return module;
+  }
+
+  function mockLatestModuleVersion(module: Awaited<ReturnType<typeof seedVersionedModule>>, latestVersion: string) {
+    return vi.spyOn(ModuleLoader.prototype, 'load').mockImplementation((modulePath, options) => {
+      if (options?.version === 'latest') {
+        return {
+          module: {
+            ...module,
+            metadata: {
+              ...module.metadata,
+              version: latestVersion
+            }
+          } as any,
+          version: latestVersion,
+          metadata: {
+            version: latestVersion,
+            deprecated: false,
+            breaking: false
+          } as any,
+          resolution: {
+            version: latestVersion,
+            path: modulePath,
+            strategy: 'latest',
+            available: [latestVersion]
+          }
+        } as any;
+      }
+
+      return null;
+    });
+  }
+
   describe('createCommand', () => {
     it('creates a valid scaffold in the modules root', async () => {
       await createCommand('starter-module', { type: 'coding-standards' });
@@ -244,33 +291,7 @@ describe('module management commands', () => {
       process.chdir(project.path);
 
       const latestVersion = '2.0.0';
-      const loadSpy = vi.spyOn(ModuleLoader.prototype, 'load').mockImplementation((modulePath, options) => {
-        if (options?.version === 'latest') {
-          return {
-            module: {
-              ...module,
-              metadata: {
-                ...module.metadata,
-                version: latestVersion
-              }
-            } as any,
-            version: latestVersion,
-            metadata: {
-              version: latestVersion,
-              deprecated: false,
-              breaking: false
-            } as any,
-            resolution: {
-              version: latestVersion,
-              path: modulePath,
-              strategy: 'latest',
-              available: [latestVersion]
-            }
-          } as any;
-        }
-
-        return null;
-      });
+      const loadSpy = mockLatestModuleVersion(module, latestVersion);
 
       await upgradeCommand(module.fullName, { dryRun: true });
       loadSpy.mockRestore();
@@ -278,6 +299,59 @@ describe('module management commands', () => {
       const configAfter = JSON.parse(await readFile(project.configPath, 'utf-8'));
       expect(configAfter.modules[0].version).toBe('1.0.0');
       expect(readOutput()).toContain('[DRY RUN] No changes made');
+    });
+
+    it('blocks JSON upgrade output when the Augment runtime cannot be determined', async () => {
+      const project = await testEnv.createProject();
+      const module = await seedVersionedModuleWithCompatibility('upgrade-unknown-augment', '1.0.0', {
+        augmentMinVersion: '1.0.0'
+      });
+      const config = JSON.parse(await readFile(project.configPath, 'utf-8'));
+      config.modules.push({
+        name: module.fullName,
+        version: '1.0.0',
+        type: module.metadata.type,
+        description: module.metadata.description
+      });
+      await writeFile(project.configPath, JSON.stringify(config, null, 2));
+      process.chdir(project.path);
+
+      const loadSpy = mockLatestModuleVersion(module, '2.0.0');
+
+      await expect(upgradeCommand(module.fullName, { json: true, dryRun: true })).rejects.toThrow('process.exit(1)');
+      loadSpy.mockRestore();
+
+      expect(readOutput()).toContain('Compatibility checks failed');
+      expect(readOutput()).toContain('Unable to determine current Augment version; compatibility cannot be verified');
+    });
+
+    it('keeps upgradeCommand warning style for other incompatibilities', async () => {
+      const project = await testEnv.createProject();
+      const module = await seedVersionedModuleWithCompatibility('upgrade-ts-warning', '1.0.0', {
+        augmentMinVersion: '1.0.0',
+        typescriptMinVersion: '999.0.0'
+      });
+      const config = JSON.parse(await readFile(project.configPath, 'utf-8'));
+      config.modules.push({
+        name: module.fullName,
+        version: '1.0.0',
+        type: module.metadata.type,
+        description: module.metadata.description
+      });
+      await writeFile(project.configPath, JSON.stringify(config, null, 2));
+      process.chdir(project.path);
+
+      const loadSpy = mockLatestModuleVersion(module, '2.0.0');
+
+      await upgradeCommand(module.fullName, {
+        dryRun: true,
+        compatibilityChecker: new CompatibilityChecker({ augmentVersion: '1.0.0' })
+      });
+      loadSpy.mockRestore();
+
+      expect(readOutput()).toContain('Compatibility Warnings:');
+      expect(readOutput()).toContain('TypeScript');
+      expect(readOutput()).not.toContain('Compatibility Errors:');
     });
 
     it('keeps versionInfoCommand option flags intact', async () => {
