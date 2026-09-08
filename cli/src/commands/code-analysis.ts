@@ -7,6 +7,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { analyzeFileComplexity } from '../analysis/complexity-analyzer';
 import { analyzeDependencies, detectCircularDependencies } from '../analysis/dependency-analyzer';
+import { analyzePatterns } from '../analysis/pattern-analyzer';
 import { scanFile } from '../analysis/security-scanner';
 import {
   AnalysisIssue,
@@ -14,6 +15,7 @@ import {
   AnalysisResult,
   DependencyAnalysis,
   FileComplexityAnalysis,
+  PatternDetection,
   SecurityVulnerability,
   Severity
 } from '../analysis/types';
@@ -92,8 +94,8 @@ async function performAnalysis(files: string[], options: AnalysisOptions): Promi
       result.issues = dependenciesToIssues(result.dependencies, options.severity);
       break;
     case 'patterns':
-      result.patterns = [];
-      result.issues = [];
+      result.patterns = analyzePatterns(files);
+      result.issues = patternsToIssues(result.patterns, options.severity);
       break;
     case 'quality':
     default:
@@ -220,6 +222,29 @@ function dependenciesToIssues(dependencies: DependencyAnalysis[], minSeverity: S
   }
 
   return issues;
+}
+
+function patternsToIssues(patterns: PatternDetection[] | undefined, minSeverity: Severity): AnalysisIssue[] {
+  if (!patterns || patterns.length === 0) {
+    return [];
+  }
+
+  const minIndex = SEVERITY_ORDER.indexOf(minSeverity);
+  const patternSeverity: Severity = 'medium';
+  const severityIndex = SEVERITY_ORDER.indexOf(patternSeverity);
+
+  if (severityIndex < minIndex) {
+    return [];
+  }
+
+  return patterns.map((pattern) => ({
+    file: pattern.file,
+    line: pattern.line,
+    type: pattern.type,
+    severity: patternSeverity,
+    message: pattern.description,
+    recommendation: 'Extract the shared logic into a helper function or shared utility.'
+  }));
 }
 
 function updateSummary(result: AnalysisResult): void {
