@@ -29,27 +29,27 @@ export function createCatalogGitHook(
     }
   }
   
-  const catalogHookContent = `
-# Auto-update MODULES.md catalog
+  const catalogHookContent = `# Auto-update MODULES.md catalog
 if [ -d augment-extensions ]; then
   echo "Updating MODULES.md catalog..."
   augx catalog
-  
+
   # Add catalog to commit if changed
   if [ -f MODULES.md ]; then
     git add MODULES.md
   fi
+else
+  echo "Skipping MODULES.md catalog sync: this hook only runs in the Augment Extensions repository layout (missing augment-extensions/)."
 fi
 `;
 
   // If hook exists, append to it; otherwise create new
   if (existingContent) {
-    const updatedContent = existingContent.trimEnd() + '\n' + catalogHookContent;
+    const updatedContent = existingContent.trimEnd() + '\n\n' + catalogHookContent;
     fs.writeFileSync(hookPath, updatedContent, { mode: 0o755 });
     console.log(`Updated ${hookType} hook with catalog sync`);
   } else {
     const newHookContent = `#!/bin/sh
-# Auto-update MODULES.md catalog
 ${catalogHookContent}`;
     fs.writeFileSync(hookPath, newHookContent, { mode: 0o755 });
     console.log(`Created ${hookType} hook with catalog sync`);
@@ -73,9 +73,7 @@ export function removeCatalogGitHook(
   const content = fs.readFileSync(hookPath, 'utf-8');
   
   // Remove catalog sync section
-  const updatedContent = content
-    .replace(/# Auto-update MODULES\.md catalog[\s\S]*?fi\n/g, '')
-    .trim();
+  const updatedContent = removeCatalogHookBlock(content);
   
   if (updatedContent.length === 0 || updatedContent === '#!/bin/sh') {
     // Hook is now empty, remove it
@@ -85,6 +83,51 @@ export function removeCatalogGitHook(
     fs.writeFileSync(hookPath, updatedContent, { mode: 0o755 });
     console.log(`Removed catalog sync from ${hookType} hook`);
   }
+}
+
+function removeCatalogHookBlock(content: string): string {
+  const lines = content.replace(/\r\n?/g, '\n').split('\n');
+  const startIndex = lines.findIndex(line => line.trim() === '# Auto-update MODULES.md catalog');
+
+  if (startIndex === -1) {
+    return content;
+  }
+
+  let depth = 0;
+  let endIndex = -1;
+  let inBlock = false;
+
+  for (let i = startIndex + 1; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+
+    if (trimmed === 'if [ -d augment-extensions ]; then') {
+      depth += 1;
+      inBlock = true;
+      continue;
+    }
+
+    if (inBlock && trimmed.startsWith('if ') && trimmed.endsWith('then')) {
+      depth += 1;
+      continue;
+    }
+
+    if (inBlock && trimmed === 'fi') {
+      depth -= 1;
+
+      if (depth === 0) {
+        endIndex = i;
+        break;
+      }
+    }
+  }
+
+  if (endIndex === -1) {
+    return content;
+  }
+
+  return [...lines.slice(0, startIndex), ...lines.slice(endIndex + 1)]
+    .join('\n')
+    .trim();
 }
 
 /**
