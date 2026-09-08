@@ -9,7 +9,7 @@
  * The priority chain can be overridden via .augment/extensions.json configuration.
  */
 
-import { VendorStyle, DomainStyle, StylePreferences, StyleSelector } from './types';
+import { VendorStyle, StylePreferences, StyleSelector } from './types';
 import { GOOGLE_MODERN } from './domains/web-page-styles/google-modern';
 import { MICROSOFT_FLUENT } from './domains/web-page-styles/microsoft-fluent';
 import { AMAZON_CLOUDSCAPE } from './domains/web-page-styles/amazon-cloudscape';
@@ -57,9 +57,9 @@ export function createStyleSelector(
      * Selects a vendor style based on preferences and fallback chain
      *
      * @param preferences - Optional style preferences
-     * @returns Selected VendorStyle or DomainStyle
+     * @returns Selected VendorStyle
      */
-    selectStyle(preferences?: StylePreferences): VendorStyle | DomainStyle {
+    selectStyle(preferences?: StylePreferences): VendorStyle {
       // If vendor preference is specified, try to use it
       if (preferences?.vendor) {
         const preferredStyle = VENDOR_STYLES[preferences.vendor.toLowerCase()];
@@ -99,7 +99,7 @@ export const defaultStyleSelector = createStyleSelector();
  * @returns Selected VendorStyle
  */
 export function selectVendorStyle(preferences?: StylePreferences): VendorStyle {
-  return defaultStyleSelector.selectStyle(preferences) as VendorStyle;
+  return defaultStyleSelector.selectStyle(preferences);
 }
 
 /**

@@ -44,17 +44,23 @@ export interface ColorPalette {
   primary: ColorDefinition;
   secondary?: ColorDefinition;
   accent?: ColorDefinition;
-  neutral: ColorDefinition[];
-  semantic: SemanticColors;
-  accessibility: AccessibilityRequirements;
+  tertiary?: ColorDefinition;
+  error?: ColorDefinition;
+  neutral: ColorDefinition | ColorDefinition[];
+  neutralVariant?: ColorDefinition;
+  semantic?: SemanticColors;
+  accessibility?: AccessibilityRequirements;
 }
 
 export interface ColorDefinition {
   name: string;
   hex: string;
-  rgb: RGB;
-  hsl: HSL;
+  rgb: RGB | string;
+  hsl?: HSL;
+  usage?: string;
+  accessibility?: string;
   variants?: ColorVariant[];
+  tones?: Record<string, string> | Record<number, string>;
 }
 
 export interface RGB {
@@ -75,17 +81,27 @@ export interface ColorVariant {
   usage: string;
 }
 
+export interface SemanticColorDefinition {
+  hex: string;
+  usage?: string;
+}
+
+export type SemanticColorValue = string | SemanticColorDefinition;
+
 export interface SemanticColors {
-  success: string;
-  warning: string;
-  error: string;
-  info: string;
+  success: SemanticColorValue;
+  warning: SemanticColorValue;
+  error: SemanticColorValue;
+  info: SemanticColorValue;
 }
 
 export interface AccessibilityRequirements {
-  minContrastRatio: number;
-  wcagLevel: 'A' | 'AA' | 'AAA';
+  minContrastRatio?: number;
+  minimumContrast?: number;
+  targetContrast?: number;
+  wcagLevel?: 'A' | 'AA' | 'AAA';
   colorBlindSafe: boolean;
+  guidelines?: string[];
 }
 
 // ============================================================================
@@ -93,11 +109,13 @@ export interface AccessibilityRequirements {
 // ============================================================================
 
 export interface TypographyRules {
-  fontFamilies: FontFamily[];
-  typeScale: TypeScale;
-  hierarchy: TypographyHierarchy;
-  lineHeight: LineHeightRules;
-  letterSpacing: LetterSpacingRules;
+  fontFamilies: FontFamilies;
+  typeScale?: TypeScale;
+  hierarchy?: TypographyHierarchy;
+  lineHeight?: LineHeightRules;
+  letterSpacing?: LetterSpacingRules;
+  scale?: ScaleSystem;
+  guidelines?: string[];
 }
 
 export interface FontFamily {
@@ -108,10 +126,44 @@ export interface FontFamily {
   usage: string;
 }
 
-export interface TypeScale {
+export interface FontFamilySet {
+  primary: string;
+  secondary: string;
+  monospace: string;
+}
+
+export type FontFamilies = FontFamily[] | FontFamilySet;
+
+export interface NamedTypeScale {
+  displayLarge: TypographyStyle;
+  displayMedium: TypographyStyle;
+  displaySmall: TypographyStyle;
+  headlineLarge: TypographyStyle;
+  headlineMedium: TypographyStyle;
+  headlineSmall: TypographyStyle;
+  titleLarge: TypographyStyle;
+  titleMedium: TypographyStyle;
+  titleSmall: TypographyStyle;
+  bodyLarge: TypographyStyle;
+  bodyMedium: TypographyStyle;
+  bodySmall: TypographyStyle;
+  labelLarge: TypographyStyle;
+  labelMedium: TypographyStyle;
+  labelSmall: TypographyStyle;
+}
+
+export interface NumericTypeScale {
   base: number;
   ratio: number;
   sizes: Record<string, number>;
+}
+
+export type TypeScale = NamedTypeScale | NumericTypeScale;
+
+export interface ScaleSystem {
+  base: number;
+  ratio: number;
+  sizes: number[];
 }
 
 export interface TypographyHierarchy {
@@ -122,15 +174,17 @@ export interface TypographyHierarchy {
   h5: TypographyStyle;
   h6: TypographyStyle;
   body: TypographyStyle;
-  caption: TypographyStyle;
+  caption?: TypographyStyle;
+  small?: TypographyStyle;
 }
 
 export interface TypographyStyle {
   fontSize: string;
   fontWeight: number;
-  lineHeight: number;
+  lineHeight: number | string;
   letterSpacing?: string;
   textTransform?: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
+  usage?: string;
 }
 
 export interface LineHeightRules {
@@ -152,8 +206,10 @@ export interface LetterSpacingRules {
 export interface LayoutSystem {
   grid: GridSystem;
   spacing: SpacingSystem;
-  breakpoints: Breakpoints;
-  containers: ContainerRules;
+  breakpoints?: Breakpoints;
+  containers?: ContainerRules;
+  containerWidths?: Record<string, string>;
+  guidelines?: string[];
 }
 
 export interface GridSystem {
@@ -161,21 +217,19 @@ export interface GridSystem {
   gutter: string;
   margin: string;
   maxWidth?: string;
+  breakpoints?: Breakpoints;
 }
 
 export interface SpacingSystem {
-  base: number;
+  base?: number;
+  unit?: number;
   scale: number[];
-  tokens: Record<string, string>;
+  tokens?: Record<string, string>;
+  guidelines?: string[];
 }
 
 export interface Breakpoints {
-  xs: string;
-  sm: string;
-  md: string;
-  lg: string;
-  xl: string;
-  xxl?: string;
+  [breakpoint: string]: string;
 }
 
 export interface ContainerRules {
@@ -190,22 +244,19 @@ export interface ContainerRules {
 export interface MotionSystem {
   durations: DurationTokens;
   easings: EasingTokens;
-  animations: AnimationPreset[];
+  animations?: AnimationPreset[];
+  patterns?: Record<string, MotionPattern>;
+  guidelines?: string[];
 }
 
-export interface DurationTokens {
-  instant: string;
-  fast: string;
-  normal: string;
-  slow: string;
-}
+export type DurationTokens = Record<string, string>;
 
-export interface EasingTokens {
-  linear: string;
-  easeIn: string;
-  easeOut: string;
-  easeInOut: string;
-  spring?: string;
+export type EasingTokens = Record<string, string>;
+
+export interface MotionPattern {
+  duration: string;
+  easing: string;
+  properties: string[];
 }
 
 export interface AnimationPreset {
@@ -220,12 +271,13 @@ export interface AnimationPreset {
 // ============================================================================
 
 export interface ElevationSystem {
-  levels: ElevationLevel[];
-  shadows: ShadowTokens;
+  levels: ElevationLevel[] | Record<string, ElevationLevel>;
+  shadows?: ShadowTokens;
+  guidelines?: string[];
 }
 
 export interface ElevationLevel {
-  level: number;
+  level?: number;
   shadow: string;
   usage: string;
 }
@@ -290,7 +342,7 @@ export interface DomainStyle {
 export interface StyleSelector {
   vendorPriority: string[];
   fallbackChain: string[];
-  selectStyle(preferences?: StylePreferences): VendorStyle | DomainStyle;
+  selectStyle(preferences?: StylePreferences): VendorStyle;
 }
 
 export interface StylePreferences {
