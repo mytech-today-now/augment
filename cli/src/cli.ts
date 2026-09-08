@@ -294,8 +294,8 @@ program
 
 program
   .command('self-remove')
-  .description('Completely remove all Augment Extensions from the project')
-  .option('--dry-run', 'Preview what would be removed without actually removing')
+  .description('Safely unlink Augment Extensions from the project while preserving .augment/ and user content')
+  .option('--dry-run', 'Preview the unlink-only cleanup without making changes')
   .option('--force', 'Skip confirmation prompts')
   .action(selfRemoveCommand);
 

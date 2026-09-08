@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { TestEnvironment } from '../../helpers/test-env';
 import { unlinkCommand } from '@cli/commands/unlink';
 import { selfRemoveCommand } from '@cli/commands/self-remove';
@@ -292,6 +292,11 @@ describe('Unlink and Self-Remove Integration Tests', () => {
       const project = await testEnv.createProject();
       const module1 = await testEnv.createModule({ name: 'module-1', type: 'coding-standards' });
       const module2 = await testEnv.createModule({ name: 'module-2', type: 'domain-rules' });
+      const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const vscodeDir = join(project.path, '.vscode');
+      const vscodeExtensionsPath = join(vscodeDir, 'extensions.json');
+      const userContentDir = join(project.path, 'screenplays');
+      const userContentPath = join(userContentDir, 'draft.md');
 
       // Link modules
       const config = JSON.parse(await readFile(project.configPath, 'utf-8'));
@@ -310,18 +315,46 @@ describe('Unlink and Self-Remove Integration Tests', () => {
         }
       );
       await writeFile(project.configPath, JSON.stringify(config, null, 2));
+      await mkdir(vscodeDir, { recursive: true });
+      await writeFile(
+        vscodeExtensionsPath,
+        JSON.stringify(
+          {
+            recommendations: ['augment-code', 'ms-vscode.vscode-typescript-next']
+          },
+          null,
+          2
+        )
+      );
+      await mkdir(userContentDir, { recursive: true });
+      await writeFile(userContentPath, '# Draft screenplays file');
 
-      process.chdir(project.path);
+      try {
+        process.chdir(project.path);
 
-      // Run dry-run
-      await selfRemoveCommand({ dryRun: true });
+        // Run dry-run
+        await selfRemoveCommand({ dryRun: true });
 
-      // Verify modules are still linked
-      expect(await testEnv.isModuleLinked(module1.fullName)).toBe(true);
-      expect(await testEnv.isModuleLinked(module2.fullName)).toBe(true);
+        expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Dry-run mode'));
+        expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('.augment/extensions.json'));
+        expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('.vscode/extensions.json'));
+        expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Preserved: .augment/'));
 
-      // Verify config file still exists
-      expect(existsSync(project.configPath)).toBe(true);
+        // Verify modules are still linked
+        expect(await testEnv.isModuleLinked(module1.fullName)).toBe(true);
+        expect(await testEnv.isModuleLinked(module2.fullName)).toBe(true);
+
+        // Verify config file still exists
+        expect(existsSync(project.configPath)).toBe(true);
+        expect(existsSync(join(project.path, '.augment-removal.log'))).toBe(false);
+        expect(existsSync(userContentPath)).toBe(true);
+        expect(JSON.parse(await readFile(vscodeExtensionsPath, 'utf-8')).recommendations).toEqual([
+          'augment-code',
+          'ms-vscode.vscode-typescript-next'
+        ]);
+      } finally {
+        consoleLogSpy.mockRestore();
+      }
     });
 
     it('should show correct count in dry-run', async () => {
@@ -393,6 +426,54 @@ describe('Unlink and Self-Remove Integration Tests', () => {
       expect(existsSync(project.configPath)).toBe(true);
       const updatedConfig = JSON.parse(await readFile(project.configPath, 'utf-8'));
       expect(updatedConfig.modules).toHaveLength(0);
+    });
+
+    it('should clean VS Code recommendations and preserve user content', async () => {
+      const project = await testEnv.createProject();
+      const module = await testEnv.createModule({ name: 'test-module', type: 'coding-standards' });
+      const userContentDir = join(project.path, 'screenplays');
+      const userContentPath = join(userContentDir, 'draft.md');
+      const vscodeDir = join(project.path, '.vscode');
+      const vscodeExtensionsPath = join(vscodeDir, 'extensions.json');
+
+      // Link module
+      const config = JSON.parse(await readFile(project.configPath, 'utf-8'));
+      config.modules.push({
+        name: module.fullName,
+        version: module.metadata.version,
+        type: module.metadata.type,
+        description: module.metadata.description
+      });
+      await writeFile(project.configPath, JSON.stringify(config, null, 2));
+
+      await mkdir(userContentDir, { recursive: true });
+      await writeFile(userContentPath, '# Draft screenplays file');
+      await mkdir(vscodeDir, { recursive: true });
+      await writeFile(
+        vscodeExtensionsPath,
+        JSON.stringify(
+          {
+            recommendations: ['augment-code', 'ms-vscode.vscode-typescript-next']
+          },
+          null,
+          2
+        )
+      );
+
+      process.chdir(project.path);
+
+      // Run self-remove
+      await selfRemoveCommand({ force: true });
+
+      // Verify user content still exists
+      expect(existsSync(userContentPath)).toBe(true);
+
+      // Verify VS Code recommendations were cleaned
+      const updatedVscodeExtensions = JSON.parse(await readFile(vscodeExtensionsPath, 'utf-8'));
+      expect(updatedVscodeExtensions.recommendations).toEqual(['ms-vscode.vscode-typescript-next']);
+
+      // Verify cleanup log exists
+      expect(existsSync(join(project.path, '.augment-removal.log'))).toBe(true);
     });
 
     it('should preserve .augment directory and extensions.json', async () => {

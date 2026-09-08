@@ -129,7 +129,7 @@ augx init beads                    # nested subcommand: stand up Beads task trac
 
 #### `augx self-remove`
 
-Reverse `augx init`. Removes Augment Extensions artifacts from the project. Pair with `--dry-run` to preview, `--force` to skip confirmation.
+Safely unlink Augment Extensions from the project. It clears linked-module entries from `.augment/extensions.json`, prunes Augment recommendations from `.vscode/extensions.json` when present, writes `.augment-removal.log`, and preserves the `.augment/` directory plus user-generated content. Pair with `--dry-run` to preview the exact preserved and cleaned paths, or `--force` to skip confirmation.
 
 ```bash
 augx self-remove --dry-run

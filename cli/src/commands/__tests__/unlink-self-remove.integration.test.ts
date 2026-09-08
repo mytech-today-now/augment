@@ -8,11 +8,12 @@ import * as path from 'path';
 import { unlinkCommand } from '../unlink';
 import { selfRemoveCommand } from '../self-remove';
 import * as moduleSystem from '../../utils/module-system';
+import { getInteractivePrompt, type InteractivePrompt } from '../../utils/interactive-prompt';
 
 // Mock dependencies
 jest.mock('fs');
-jest.mock('inquirer');
 jest.mock('../../utils/module-system');
+jest.mock('../../utils/interactive-prompt');
 jest.mock('chalk', () => ({
   default: {
     blue: (str: string) => str,
@@ -21,6 +22,9 @@ jest.mock('chalk', () => ({
     gray: (str: string) => str,
     yellow: (str: string) => str,
     cyan: (str: string) => str
+  },
+  bold: {
+    blue: (str: string) => str
   },
   blue: (str: string) => str,
   green: (str: string) => str,
@@ -31,7 +35,14 @@ jest.mock('chalk', () => ({
 }));
 
 const mockFs = fs as jest.Mocked<typeof fs>;
-const mockModuleSystem = moduleSystem as jest.Mocked<typeof moduleSystem>;
+const mockModuleSystem = moduleSystem as jest.Mocked<typeof moduleSystem> & {
+  discoverCollections: jest.Mock;
+};
+const mockGetInteractivePrompt = getInteractivePrompt as jest.MockedFunction<typeof getInteractivePrompt>;
+const mockPrompt = jest.fn();
+const interactivePrompt: InteractivePrompt = {
+  prompt: mockPrompt as InteractivePrompt['prompt']
+};
 
 describe('Unlink and Self-Remove Integration Tests', () => {
   let consoleLogSpy: jest.SpyInstance;
@@ -43,6 +54,9 @@ describe('Unlink and Self-Remove Integration Tests', () => {
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
     processExitSpy = jest.spyOn(process, 'exit').mockImplementation() as any;
     jest.clearAllMocks();
+    mockPrompt.mockReset();
+    mockGetInteractivePrompt.mockReset();
+    mockGetInteractivePrompt.mockResolvedValue(interactivePrompt);
   });
 
   afterEach(() => {
@@ -166,7 +180,7 @@ describe('Unlink and Self-Remove Integration Tests', () => {
   });
 
   describe('Self-Remove (Dry-Run)', () => {
-    it('should show what would be removed in dry-run mode', async () => {
+    it('should show exact preserved and cleaned paths in dry-run mode', async () => {
       const config = {
         modules: [
           { name: 'coding-standards/html', version: '1.0.0', type: 'coding-standards' },
@@ -174,14 +188,30 @@ describe('Unlink and Self-Remove Integration Tests', () => {
         ]
       };
 
-      mockFs.existsSync.mockReturnValue(true);
-      mockFs.readFileSync.mockReturnValue(JSON.stringify(config));
+      const augmentConfigPath = path.join(process.cwd(), '.augment', 'extensions.json');
+      const vscodeExtensionsJsonPath = path.join(process.cwd(), '.vscode', 'extensions.json');
+
+      mockFs.existsSync.mockImplementation((filePath: any) =>
+        filePath === augmentConfigPath || filePath === vscodeExtensionsJsonPath
+      );
+      mockFs.readFileSync.mockImplementation((filePath: any) => {
+        if (filePath === augmentConfigPath) {
+          return JSON.stringify(config);
+        }
+
+        if (filePath === vscodeExtensionsJsonPath) {
+          return JSON.stringify({ recommendations: ['augment-code', 'other-extension'] });
+        }
+
+        return '';
+      });
 
       await selfRemoveCommand({ dryRun: true });
 
       expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Dry-run mode'));
-      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('coding-standards/html'));
-      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('coding-standards/css'));
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('.augment/extensions.json'));
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('.vscode/extensions.json'));
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Preserved: .augment/'));
       expect(mockFs.writeFileSync).not.toHaveBeenCalled();
     });
 
@@ -201,8 +231,8 @@ describe('Unlink and Self-Remove Integration Tests', () => {
     });
   });
 
-  describe('Self-Remove (Actual)', () => {
-    it('should remove all modules with force flag', async () => {
+  describe('Self-Remove (Prompting)', () => {
+    it('should confirm before removing linked modules', async () => {
       const config = {
         modules: [
           { name: 'coding-standards/html', version: '1.0.0', type: 'coding-standards' },
@@ -212,13 +242,86 @@ describe('Unlink and Self-Remove Integration Tests', () => {
 
       mockFs.existsSync.mockReturnValue(true);
       mockFs.readFileSync.mockReturnValue(JSON.stringify(config));
+      mockPrompt.mockResolvedValueOnce({ confirm: false });
+
+      await selfRemoveCommand({});
+
+      expect(mockPrompt).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: 'confirm',
+            name: 'confirm',
+            message: expect.stringContaining('preserve .augment/ and user content')
+          })
+        ])
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Cancelled.'));
+      expect(mockFs.writeFileSync).not.toHaveBeenCalled();
+    });
+
+    it('should fall back cleanly when prompt support is unavailable', async () => {
+      const config = {
+        modules: [
+          { name: 'coding-standards/html', version: '1.0.0', type: 'coding-standards' }
+        ]
+      };
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readFileSync.mockReturnValue(JSON.stringify(config));
+      mockGetInteractivePrompt.mockResolvedValueOnce(null);
+
+      await selfRemoveCommand({});
+
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining('preserved .augment/ directory and user content')
+      );
+      expect(mockPrompt).not.toHaveBeenCalled();
+      expect(mockFs.writeFileSync).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Self-Remove (Actual)', () => {
+    it('should remove all modules with force flag', async () => {
+      const config = {
+        modules: [
+          { name: 'coding-standards/html', version: '1.0.0', type: 'coding-standards' },
+          { name: 'coding-standards/css', version: '1.0.0', type: 'coding-standards' }
+        ]
+      };
+
+      const augmentConfigPath = path.join(process.cwd(), '.augment', 'extensions.json');
+      const vscodeExtensionsJsonPath = path.join(process.cwd(), '.vscode', 'extensions.json');
+
+      mockFs.existsSync.mockImplementation((filePath: any) =>
+        filePath === augmentConfigPath || filePath === vscodeExtensionsJsonPath
+      );
+      mockFs.readFileSync.mockImplementation((filePath: any) => {
+        if (filePath === augmentConfigPath) {
+          return JSON.stringify(config);
+        }
+
+        if (filePath === vscodeExtensionsJsonPath) {
+          return JSON.stringify({
+            recommendations: ['augment-code', 'ms-vscode.vscode-typescript-next']
+          });
+        }
+
+        return '';
+      });
       mockFs.writeFileSync.mockImplementation(() => {});
 
       await selfRemoveCommand({ force: true });
 
       expect(mockFs.writeFileSync).toHaveBeenCalled();
-      const writtenConfig = JSON.parse(mockFs.writeFileSync.mock.calls[0][1] as string);
+      const configWrite = mockFs.writeFileSync.mock.calls.find(call => call[0] === augmentConfigPath);
+      expect(configWrite).toBeDefined();
+      const writtenConfig = JSON.parse(configWrite![1] as string);
       expect(writtenConfig.modules).toHaveLength(0);
+
+      const vscodeWrite = mockFs.writeFileSync.mock.calls.find(call => call[0] === vscodeExtensionsJsonPath);
+      expect(vscodeWrite).toBeDefined();
+      const writtenVscodeConfig = JSON.parse(vscodeWrite![1] as string);
+      expect(writtenVscodeConfig.recommendations).toEqual(['ms-vscode.vscode-typescript-next']);
     });
 
     it('should create removal log file', async () => {
