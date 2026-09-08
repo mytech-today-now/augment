@@ -14,6 +14,12 @@ import { searchCommand } from './commands/search';
 import { useCommand } from './commands/use';
 import { upgradeCommand } from './commands/upgrade';
 import { versionInfoCommand } from './commands/version-info';
+import {
+  createCommand,
+  pinCommand,
+  checkUpdatesCommand,
+  diffCommand
+} from './commands/module-management';
 import { coordSpecsCommand, coordTasksCommand, coordRulesCommand, coordFileCommand } from './commands/coord';
 import { syncBeadsCommand, syncOpenSpecCommand, syncAllCommand, syncWatchCommand } from './commands/sync';
 import { migrateExistingData } from './utils/migrate';
@@ -268,11 +274,7 @@ program
   .command('create <name>')
   .description('Create a new extension module')
   .option('--type <type>', 'Module type (coding-standards, domain-rules, workflows, examples, marketing-standards, writing-standards, themes)')
-  .action((name: string, options: any) => {
-    console.log(chalk.green(`Creating new module: ${name}`));
-    console.log(chalk.gray(`Type: ${options.type || 'coding-standards'}`));
-    // Implementation
-  });
+  .action(createCommand);
 
 program
   .command('validate <module>')
@@ -283,18 +285,12 @@ program
 program
   .command('pin <module> <version>')
   .description('Pin module to specific version')
-  .action((module: string, version: string) => {
-    console.log(chalk.cyan(`Pinning ${module} to version ${version}`));
-    // Implementation
-  });
+  .action(pinCommand);
 
 program
   .command('check-updates')
   .description('Check for available module updates')
-  .action(() => {
-    console.log(chalk.blue('Checking for updates...'));
-    // Implementation
-  });
+  .action(checkUpdatesCommand);
 
 program
   .command('self-remove')
@@ -306,10 +302,7 @@ program
 program
   .command('diff <module>')
   .description('Show differences between current and latest version')
-  .action((module: string) => {
-    console.log(chalk.magenta(`Showing diff for: ${module}`));
-    // Implementation
-  });
+  .action(diffCommand);
 
 program
   .command('catalog')

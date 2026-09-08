@@ -1,8 +1,7 @@
 import chalk from 'chalk';
-import * as fs from 'fs';
-import * as path from 'path';
 import { ModuleLoader } from '../core/module-loader';
 import { discoverModules } from '../utils/module-system';
+import { pinModuleVersion } from '../utils/extensions-config';
 
 export interface UseCommandOptions {
   version?: string;
@@ -45,7 +44,7 @@ export async function useCommand(moduleName: string, options: UseCommandOptions 
     }
 
     if (pin) {
-      await pinModuleVersion(moduleName, result.version);
+      await pinModuleVersion(module.fullName, result.version);
     }
 
     if (json) {
@@ -94,40 +93,4 @@ export async function useCommand(moduleName: string, options: UseCommandOptions 
     }
     process.exit(1);
   }
-}
-
-async function pinModuleVersion(moduleName: string, version: string): Promise<void> {
-  const configDir = path.join(process.cwd(), '.augment');
-  const configPath = path.join(configDir, 'extensions.json');
-
-  if (!fs.existsSync(configDir)) {
-    fs.mkdirSync(configDir, { recursive: true });
-  }
-
-  let config: { modules: Array<{ name: string; version: string; pinnedAt?: string }> } = { modules: [] };
-  if (fs.existsSync(configPath)) {
-    try {
-      config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-    } catch {
-      config = { modules: [] };
-    }
-  }
-
-  if (!Array.isArray(config.modules)) {
-    config.modules = [];
-  }
-
-  const existingIndex = config.modules.findIndex((m) => m.name === moduleName);
-  if (existingIndex >= 0) {
-    config.modules[existingIndex].version = version;
-    config.modules[existingIndex].pinnedAt = new Date().toISOString();
-  } else {
-    config.modules.push({
-      name: moduleName,
-      version,
-      pinnedAt: new Date().toISOString()
-    });
-  }
-
-  fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
 }
