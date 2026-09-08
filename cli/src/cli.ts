@@ -481,10 +481,9 @@ mcpCommand
 
 mcpCommand
   .command('add <name> <command>')
-  .description('Add MCP server configuration')
+  .description('Add MCP server configuration (stdio only)')
   .option('--args <args>', 'Command arguments (space-separated)')
-  .option('--transport <type>', 'Transport type (stdio or http)', 'stdio')
-  .option('--url <url>', 'Server URL (for HTTP transport)')
+  .option('--transport <type>', 'Transport type (stdio only)', 'stdio')
   .option('--env <json>', 'Environment variables (JSON)')
   .action(mcpAddCommand);
 

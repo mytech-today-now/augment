@@ -821,8 +821,7 @@ describe('CLI Command Parsing', () => {
       mcpCmd
         .command('add <name> <command>')
         .option('--args <args>', 'Command arguments')
-        .option('--transport <type>', 'Transport type', 'stdio')
-        .option('--url <url>', 'Server URL')
+        .option('--transport <type>', 'Transport type (stdio only)', 'stdio')
         .option('--env <json>', 'Environment variables')
         .action(mockAction);
 
@@ -839,13 +838,13 @@ describe('CLI Command Parsing', () => {
       const mcpCmd = program.command('mcp');
       mcpCmd
         .command('add <name> <command>')
-        .option('--transport <type>', 'Transport type', 'stdio')
+        .option('--transport <type>', 'Transport type (stdio only)', 'stdio')
         .option('--env <json>', 'Environment variables')
         .action(mockAction);
 
       program.parse([
         'node', 'augx', 'mcp', 'add', 'test-server', 'node server.js',
-        '--transport', 'http',
+        '--transport', 'stdio',
         '--env', '{"KEY":"value"}'
       ]);
 
@@ -853,7 +852,7 @@ describe('CLI Command Parsing', () => {
       expect(mockAction).toHaveBeenCalled();
       expect(mockAction.mock.calls[0][0]).toBe('test-server');
       expect(mockAction.mock.calls[0][1]).toBe('node server.js');
-      expect(mockAction.mock.calls[0][2].transport).toBe('http');
+      expect(mockAction.mock.calls[0][2].transport).toBe('stdio');
       expect(mockAction.mock.calls[0][2].env).toBe('{"KEY":"value"}');
     });
 

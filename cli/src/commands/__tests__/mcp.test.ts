@@ -67,7 +67,8 @@ describe('MCP Commands', () => {
       await mcpCommands.mcpListCommand();
 
       expect(mcpIntegration.loadMCPConfigs).toHaveBeenCalled();
-      expect(consoleLogSpy).toHaveBeenCalled();
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('test-server-1'));
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('test-server-2'));
     });
 
     it('should handle no MCP servers configured', async () => {
@@ -110,6 +111,21 @@ describe('MCP Commands', () => {
         })
       );
       expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Added MCP server'));
+    });
+
+    it('should reject HTTP transport with a clear message', async () => {
+      (mcpIntegration.addMCPServer as jest.Mock).mockImplementation(() => {
+        throw new Error('HTTP transport is not yet supported, use stdio');
+      });
+
+      await mcpCommands.mcpAddCommand('new-server', 'node server.js', {
+        transport: 'http' as any
+      });
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Error adding MCP server: HTTP transport is not yet supported, use stdio')
+      );
+      expect(processExitSpy).toHaveBeenCalledWith(1);
     });
 
     it('should handle add errors', async () => {
@@ -159,6 +175,22 @@ describe('MCP Commands', () => {
         { param: 'value' }
       );
       expect(consoleLogSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('mcpDiscoverCommand', () => {
+    it('should surface discovery errors clearly', async () => {
+      (mcpIntegration.discoverMCPTools as jest.Mock).mockRejectedValue(
+        new Error('HTTP transport is not yet supported, use stdio')
+      );
+
+      await mcpCommands.mcpDiscoverCommand('legacy-server');
+
+      expect(mcpIntegration.discoverMCPTools).toHaveBeenCalledWith('legacy-server');
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Error discovering tools: HTTP transport is not yet supported, use stdio')
+      );
+      expect(processExitSpy).toHaveBeenCalledWith(1);
     });
   });
 });

@@ -7,13 +7,18 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { spawn, ChildProcess } from 'child_process';
+import { spawn } from 'child_process';
+
+export const SUPPORTED_MCP_TRANSPORT = 'stdio' as const;
+export type MCPTransport = typeof SUPPORTED_MCP_TRANSPORT;
+export const UNSUPPORTED_MCP_TRANSPORT_MESSAGE =
+  'HTTP transport is not yet supported, use stdio';
 
 export interface MCPServerConfig {
   name: string;
   command: string;
   args?: string[];
-  transport: 'stdio' | 'http';
+  transport: MCPTransport;
   url?: string;
   env?: Record<string, string>;
 }
@@ -82,6 +87,10 @@ export function saveMCPConfigs(configs: MCPServerConfig[], repoRoot?: string): v
  * Add MCP server configuration
  */
 export function addMCPServer(config: MCPServerConfig, repoRoot?: string): void {
+  if (config.transport !== SUPPORTED_MCP_TRANSPORT) {
+    throw new Error(UNSUPPORTED_MCP_TRANSPORT_MESSAGE);
+  }
+
   const configs = loadMCPConfigs(repoRoot);
   
   // Check if server already exists
@@ -128,8 +137,8 @@ export function executeMCPCommand(
       return;
     }
 
-    if (config.transport !== 'stdio') {
-      reject(new Error(`Only stdio transport is currently supported`));
+    if (config.transport !== SUPPORTED_MCP_TRANSPORT) {
+      reject(new Error(UNSUPPORTED_MCP_TRANSPORT_MESSAGE));
       return;
     }
 
@@ -292,8 +301,8 @@ export async function discoverMCPTools(serverName: string, repoRoot?: string): P
       return;
     }
 
-    if (config.transport !== 'stdio') {
-      reject(new Error(`Only stdio transport is currently supported for discovery`));
+    if (config.transport !== SUPPORTED_MCP_TRANSPORT) {
+      reject(new Error(UNSUPPORTED_MCP_TRANSPORT_MESSAGE));
       return;
     }
 

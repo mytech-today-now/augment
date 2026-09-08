@@ -365,7 +365,6 @@ The `augx mcp` family configures and exercises MCP servers from the CLI.
 augx mcp list                                 # list configured MCP servers
 augx mcp list --json
 augx mcp add beads python --args="-m beads_mcp" --transport stdio
-augx mcp add beads-http --transport http --url https://example/mcp
 augx mcp remove beads
 augx mcp exec beads tasks/list                # invoke a tool on a configured server
 augx mcp exec beads tasks/get --args '{"id":"bd-init"}' --json
@@ -374,6 +373,8 @@ augx mcp discover beads --json
 augx mcp wrap beads tasks/list my-skill       # generate a skill wrapper for a tool
 augx mcp generate-cli beads ./generated-cli   # generate a CLI from a server via mcporter
 ```
+
+HTTP transport is not yet supported, use stdio.
 
 ### Skills
 

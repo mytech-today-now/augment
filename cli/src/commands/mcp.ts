@@ -19,6 +19,10 @@ import {
   MCPServerConfig
 } from '../utils/mcp-integration';
 
+function formatError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 /**
  * List all configured MCP servers
  */
@@ -55,7 +59,7 @@ export async function mcpListCommand(options: { json?: boolean } = {}): Promise<
     console.log(chalk.gray('\n' + '─'.repeat(50)));
     console.log(chalk.blue(`Total: ${configs.length} servers\n`));
   } catch (error) {
-    console.error(chalk.red(`Error listing MCP servers: ${error}`));
+    console.error(chalk.red(`Error listing MCP servers: ${formatError(error)}`));
     process.exit(1);
   }
 }
@@ -68,8 +72,7 @@ export async function mcpAddCommand(
   command: string,
   options: {
     args?: string;
-    transport?: 'stdio' | 'http';
-    url?: string;
+    transport?: 'stdio';
     env?: string;
   } = {}
 ): Promise<void> {
@@ -79,7 +82,6 @@ export async function mcpAddCommand(
       command,
       transport: options.transport || 'stdio',
       args: options.args ? options.args.split(' ') : undefined,
-      url: options.url,
       env: options.env ? JSON.parse(options.env) : undefined
     };
 
@@ -89,7 +91,7 @@ export async function mcpAddCommand(
     console.log(chalk.gray(`  Command: ${command}`));
     console.log(chalk.gray(`  Transport: ${config.transport}`));
   } catch (error) {
-    console.error(chalk.red(`Error adding MCP server: ${error}`));
+    console.error(chalk.red(`Error adding MCP server: ${formatError(error)}`));
     process.exit(1);
   }
 }
@@ -108,7 +110,7 @@ export async function mcpRemoveCommand(name: string): Promise<void> {
 
     console.log(chalk.green(`✓ Removed MCP server: ${name}`));
   } catch (error) {
-    console.error(chalk.red(`Error removing MCP server: ${error}`));
+    console.error(chalk.red(`Error removing MCP server: ${formatError(error)}`));
     process.exit(1);
   }
 }
@@ -139,7 +141,7 @@ export async function mcpExecCommand(
       console.log(JSON.stringify(result, null, 2));
     }
   } catch (error) {
-    console.error(chalk.red(`Error executing MCP tool: ${error}`));
+    console.error(chalk.red(`Error executing MCP tool: ${formatError(error)}`));
     process.exit(1);
   }
 }
@@ -174,7 +176,7 @@ export async function mcpWrapCommand(
     console.log(chalk.gray(`  Category: ${category}`));
     console.log(chalk.gray(`  Output: ${outputPath}`));
   } catch (error) {
-    console.error(chalk.red(`Error generating skill wrapper: ${error}`));
+    console.error(chalk.red(`Error generating skill wrapper: ${formatError(error)}`));
     process.exit(1);
   }
 }
@@ -212,7 +214,7 @@ export async function mcpDiscoverCommand(
     console.log(chalk.gray('\n' + '─'.repeat(50)));
     console.log(chalk.blue(`Total: ${tools.length} tools\n`));
   } catch (error) {
-    console.error(chalk.red(`Error discovering tools: ${error}`));
+    console.error(chalk.red(`Error discovering tools: ${formatError(error)}`));
     process.exit(1);
   }
 }
@@ -240,7 +242,7 @@ export async function mcpGenerateCLICommand(
     console.log(chalk.green(`\n✓ CLI generated successfully`));
     console.log(chalk.gray(`  Output: ${outputPath}`));
   } catch (error) {
-    console.error(chalk.red(`Error generating CLI: ${error}`));
+    console.error(chalk.red(`Error generating CLI: ${formatError(error)}`));
     process.exit(1);
   }
 }
