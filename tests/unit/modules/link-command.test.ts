@@ -211,6 +211,16 @@ describe('linkCommand version pinning', () => {
     ).toBe(true);
   });
 
+  it('forwards --force to the mirror runner when mirroring', async () => {
+    const project = await testEnv.createProject({ name: 'force-mirror-project' });
+    process.chdir(project.path);
+
+    await linkCommand('visual-design', { mirror: 'cursor', force: true });
+
+    expect(vi.mocked(mirrorModule)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(mirrorModule).mock.calls[0]?.[2]).toMatchObject({ force: true });
+  });
+
   it('leaves the previous record untouched when an update write fails', async () => {
     const project = await testEnv.createProject({ name: 'update-failure-project' });
     const existingEntry = {

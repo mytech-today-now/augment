@@ -17,6 +17,7 @@ The pre-existing `augx link` behavior (resolve module, update coordination manif
 | Flag | Default | Purpose |
 |---|---|---|
 | `--mirror` | none, or `export.mirror` from coordination.json when `true` | Comma-separated tool list: `claude-code`, `cursor`, `windsurf`, `copilot`. |
+| `--force` | `false` | Overwrite drifted single-file mirrors after backing them up under `.augment/mirror-backups/`. |
 | `--verbose` | `false` | Print the materialization mode (`symlink` vs `copy`) for each file. |
 
 ## Per-Tool Target Paths
@@ -35,6 +36,8 @@ For Claude Code, the source directory layout is preserved file-for-file under `.
 ```
 <!-- augx-include: .claude/rules/<module>/ -->
 ```
+
+When a single-file mirror already exists, augx compares its banner and body to the freshly rendered content before writing. Unmarked files and drifted files are refused unless `--force` is supplied. Forced overwrites first move the previous target into `.augment/mirror-backups/` so the prior state stays recoverable.
 
 ## Materialization Strategy
 

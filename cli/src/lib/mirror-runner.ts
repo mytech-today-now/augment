@@ -16,6 +16,7 @@
  */
 
 import * as fs from 'fs';
+import { createHash } from 'crypto';
 import * as path from 'path';
 import type { ResolvedModule } from '../adapters/types';
 import type {
@@ -24,9 +25,10 @@ import type {
   MirrorTool,
 } from '../types/coordination-export';
 import { ADAPTERS } from '../adapters';
-import { aggregate, buildExportMeta } from './export-runner';
+import { aggregate, assessDrift, buildExportMeta } from './export-runner';
 import { hasBeadsMcpServer, loadBeadsMcpSnippet } from './mcp-detection';
 import { DEFAULT_EXPORT_IGNORE } from '../types/coordination-export';
+import { extractEmbeddedHash } from './source-hash';
 
 /** Errno codes that mark a permission/feature gap and trigger copy fallback. */
 const SYMLINK_FALLBACK_CODES: ReadonlySet<string> = new Set([
@@ -35,6 +37,73 @@ const SYMLINK_FALLBACK_CODES: ReadonlySet<string> = new Set([
   'ENOSYS',
   'EOPNOTSUPP',
 ]);
+
+/** Return `true` when `err` is the normal "path does not exist" failure. */
+function isMissingPathError(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    (err as NodeJS.ErrnoException).code === 'ENOENT'
+  );
+}
+
+/** Read the directory entry at `targetAbs` without following symlinks. */
+function lstatIfPresent(targetAbs: string): fs.Stats | undefined {
+  try {
+    return fs.lstatSync(targetAbs);
+  } catch (err) {
+    if (isMissingPathError(err)) {
+      return undefined;
+    }
+    throw err;
+  }
+}
+
+/** SHA-256 digest for a Buffer or UTF-8 string. */
+function digestBytes(data: Buffer | string): string {
+  return createHash('sha256').update(data).digest('hex');
+}
+
+/** Digest a tracked source file as it exists on disk. */
+function digestFile(sourceAbs: string): string {
+  return digestBytes(fs.readFileSync(sourceAbs));
+}
+
+/** Digest generated copy-mode content using the same LF normalization as writes. */
+function digestGeneratedContent(content: string): string {
+  return digestBytes(content.replace(/\r\n?/g, '\n'));
+}
+
+/** Resolve the project root to a stable path for containment checks. */
+function resolveProjectRoot(projectRoot: string): string {
+  try {
+    return fs.realpathSync(projectRoot);
+  } catch {
+    return path.resolve(projectRoot);
+  }
+}
+
+/** Refuse to operate on paths that resolve outside the project root. */
+function assertContainedPath(
+  projectRoot: string,
+  absPath: string,
+  label: string
+): void {
+  const rootAbs = resolveProjectRoot(projectRoot);
+  const candidateAbs = path.resolve(absPath);
+  const rel = path.relative(rootAbs, candidateAbs);
+  if (rel.length === 0 || (!rel.startsWith('..') && !path.isAbsolute(rel))) {
+    return;
+  }
+  throw new Error(`Refusing to write ${label} outside project root: ${candidateAbs}`);
+}
+
+/** Forward-slash backup path under `.augment/mirror-backups/`. */
+function generatedBackupPath(projectRoot: string, targetAbs: string): string {
+  const rel = relativeForward(projectRoot, targetAbs).split('/').filter(Boolean);
+  return path.join(projectRoot, '.augment', 'mirror-backups', ...rel);
+}
 
 /** Result of materializing a single (sourceAbs, targetAbs) pair. */
 export interface MaterializeResult {
@@ -63,7 +132,7 @@ export function materializeFile(
 ): MaterializeResult {
   fs.mkdirSync(path.dirname(targetAbs), { recursive: true });
 
-  if (fs.existsSync(targetAbs)) {
+  if (lstatIfPresent(targetAbs)) {
     const decision = reconcileExistingTarget(sourceAbs, targetAbs, options);
     if (decision.reused) {
       return decision;
@@ -210,6 +279,7 @@ export interface MirrorToolContext {
   augxVersion: string;
   ignorePatterns: readonly string[];
   now: () => string;
+  force?: boolean;
   verbose?: boolean;
   /** Existing mirror entries from `mirrors[<moduleId>]`, keyed by targetPath. */
   recordedByTarget: Map<string, MirrorEntry>;
@@ -247,7 +317,11 @@ export function mirrorModule(
         const result = materializeFile(item.sourceAbs, item.targetAbs, {
           recordedMode: recorded?.mode,
         });
-        entries.push({ ...item.entry, mode: result.mode });
+        const entry: MirrorEntry = { ...item.entry, mode: result.mode };
+        if (result.mode === 'copy') {
+          entry.sourceDigest = digestFile(item.sourceAbs);
+        }
+        entries.push(entry);
         if (ctx.verbose) {
           log(
             `  ${tool} ${result.reused ? 'reused' : 'wrote'} ${result.mode} ` +
@@ -266,10 +340,23 @@ export function mirrorModule(
       ignorePatterns: ctx.ignorePatterns,
       now: ctx.now,
     });
-    writeGeneratedFile(single.targetAbs, content);
-    entries.push({ ...single.entry, mode: 'copy' });
+    const writeResult = writeGeneratedFile(single.targetAbs, content, {
+      projectRoot: ctx.projectRoot,
+      safeOverwrite: !ctx.force,
+    });
+    entries.push({
+      ...single.entry,
+      mode: 'copy',
+      sourceDigest: digestGeneratedContent(content),
+    });
     if (ctx.verbose) {
-      log(`  ${tool} wrote copy ${single.entry.targetPath}`);
+      const suffix = writeResult.backupPath
+        ? ` (backup ${relativeForward(ctx.projectRoot, writeResult.backupPath)})`
+        : '';
+      log(
+        `  ${tool} ${writeResult.status === 'noop' ? 'reused' : 'wrote'} copy ` +
+          `${single.entry.targetPath}${suffix}`
+      );
     }
   }
 
@@ -308,7 +395,12 @@ function prunePreviouslyTracked(
     }
     const absTarget = path.join(ctx.projectRoot, ...targetPath.split('/'));
     const absSource = path.join(ctx.projectRoot, ...recorded.sourcePath.split('/'));
-    const removed = removeTrackedTarget(absSource, absTarget, recorded.mode);
+    const removed = removeTrackedTarget(
+      absSource,
+      absTarget,
+      recorded.mode,
+      recorded.sourceDigest
+    );
     if (ctx.verbose) {
       log(
         `  ${recorded.tool} ${removed ? 'pruned' : 'kept (hand-edited)'} ${targetPath}`
@@ -326,12 +418,13 @@ function prunePreviouslyTracked(
 export function removeTrackedTarget(
   sourceAbs: string,
   targetAbs: string,
-  recordedMode: MirrorMode
+  recordedMode: MirrorMode,
+  sourceDigest?: string
 ): boolean {
-  if (!fs.existsSync(targetAbs)) {
+  const stat = lstatIfPresent(targetAbs);
+  if (!stat) {
     return true;
   }
-  const stat = fs.lstatSync(targetAbs);
   if (stat.isSymbolicLink()) {
     const linkDest = fs.readlinkSync(targetAbs);
     const resolved = path.isAbsolute(linkDest)
@@ -344,7 +437,14 @@ export function removeTrackedTarget(
     return false;
   }
   if (recordedMode === 'copy' && stat.isFile()) {
-    if (fs.existsSync(sourceAbs) && filesEqual(sourceAbs, targetAbs)) {
+    if (sourceDigest !== undefined) {
+      if (digestFile(targetAbs) === sourceDigest) {
+        fs.unlinkSync(targetAbs);
+        return true;
+      }
+      return false;
+    }
+    if (fs.existsSync(sourceAbs) && fs.statSync(sourceAbs).isFile() && filesEqual(sourceAbs, targetAbs)) {
       fs.unlinkSync(targetAbs);
       return true;
     }
@@ -360,17 +460,114 @@ function compareMirrorEntries(a: MirrorEntry, b: MirrorEntry): number {
   return 0;
 }
 
+interface GeneratedWriteOptions {
+  projectRoot: string;
+  /**
+   * When true, overwrite managed drift only when the existing target is
+   * already generated by augx. When false, back up and replace any existing
+   * target that would otherwise be overwritten.
+   */
+  safeOverwrite: boolean;
+}
+
+interface GeneratedWriteResult {
+  status: 'noop' | 'written';
+  backupPath?: string;
+}
+
 /**
- * Write a single generated file with LF line endings, creating intermediate
- * directories as needed. Replaces any existing file/symlink at the target.
+ * Write a single generated file with LF line endings. Existing managed
+ * files are compared with the freshly rendered body first; drifted content
+ * is refused unless `safeOverwrite` is disabled.
  */
-function writeGeneratedFile(targetAbs: string, content: string): void {
+function writeGeneratedFile(
+  targetAbs: string,
+  content: string,
+  options: GeneratedWriteOptions
+): GeneratedWriteResult {
+  assertContainedPath(options.projectRoot, targetAbs, 'mirror target');
   fs.mkdirSync(path.dirname(targetAbs), { recursive: true });
-  if (fs.existsSync(targetAbs)) {
-    fs.unlinkSync(targetAbs);
-  }
+
   const lf = content.replace(/\r\n?/g, '\n');
+  const stat = lstatIfPresent(targetAbs);
+  if (!stat) {
+    fs.writeFileSync(targetAbs, lf, { encoding: 'utf-8' });
+    return { status: 'written' };
+  }
+
+  if (!stat.isFile()) {
+    if (stat.isSymbolicLink()) {
+      if (options.safeOverwrite) {
+        throw new Error(
+          `Refusing to overwrite ${relativeForward(options.projectRoot, targetAbs)}: ` +
+            'existing target is a symbolic link. Re-run with --force to overwrite.'
+        );
+      }
+      return overwriteGeneratedTarget(targetAbs, lf, options.projectRoot);
+    }
+    throw new Error(
+      `Refusing to overwrite ${relativeForward(options.projectRoot, targetAbs)}: ` +
+        'existing target is not a regular file.'
+    );
+  }
+
+  const existing = fs.readFileSync(targetAbs, 'utf-8').replace(/\r\n?/g, '\n');
+  const newSourceHash = extractEmbeddedHash(lf);
+  if (!newSourceHash) {
+    throw new Error('Internal error: generated mirror content is missing a source-hash banner.');
+  }
+  const drift = assessDrift(existing, lf, newSourceHash);
+  if (drift.status === 'equivalent') {
+    return { status: 'noop' };
+  }
+  if (drift.status === 'drift' && options.safeOverwrite) {
+    throw new Error(
+      `[drift] ${relativeForward(options.projectRoot, targetAbs)}: ` +
+        `${drift.reason ?? 'hand-edited file detected'}. Re-run with --force to overwrite.`
+    );
+  }
+
+  if (!options.safeOverwrite) {
+    return overwriteGeneratedTarget(targetAbs, lf, options.projectRoot);
+  }
+
   fs.writeFileSync(targetAbs, lf, { encoding: 'utf-8' });
+  return { status: 'written' };
+}
+
+/** Replace a target file after moving its previous contents into a backup. */
+function overwriteGeneratedTarget(
+  targetAbs: string,
+  lf: string,
+  projectRoot: string
+): GeneratedWriteResult {
+  const backupAbs = generatedBackupPath(projectRoot, targetAbs);
+  assertContainedPath(projectRoot, backupAbs, 'mirror backup');
+  fs.mkdirSync(path.dirname(backupAbs), { recursive: true });
+  if (lstatIfPresent(backupAbs)) {
+    fs.rmSync(backupAbs, { recursive: true, force: true });
+  }
+  if (lstatIfPresent(targetAbs)) {
+    fs.renameSync(targetAbs, backupAbs);
+  }
+
+  try {
+    fs.writeFileSync(targetAbs, lf, { encoding: 'utf-8' });
+  } catch (err) {
+    try {
+      if (lstatIfPresent(targetAbs)) {
+        fs.unlinkSync(targetAbs);
+      }
+      if (lstatIfPresent(backupAbs)) {
+        fs.copyFileSync(backupAbs, targetAbs);
+      }
+    } catch {
+      // Best-effort rollback. The original error is still surfaced below.
+    }
+    throw err;
+  }
+
+  return { status: 'written', backupPath: backupAbs };
 }
 
 /**
@@ -442,12 +639,17 @@ export function unlinkModuleMirrors(
     toolsTouched.add(entry.tool);
     const absTarget = path.join(projectRoot, ...entry.targetPath.split('/'));
     const absSource = path.join(projectRoot, ...entry.sourcePath.split('/'));
-    if (!fs.existsSync(absTarget)) {
+    if (!lstatIfPresent(absTarget)) {
       outcomes.push({ tool: entry.tool, targetPath: entry.targetPath, status: 'absent' });
       dirsToPrune.add(path.dirname(absTarget));
       continue;
     }
-    const removed = removeTrackedTarget(absSource, absTarget, entry.mode);
+    const removed = removeTrackedTarget(
+      absSource,
+      absTarget,
+      entry.mode,
+      entry.sourceDigest
+    );
     outcomes.push({
       tool: entry.tool,
       targetPath: entry.targetPath,
@@ -518,5 +720,3 @@ function readClaudeStubPresence(projectRoot: string, moduleId: string): boolean 
   const segment = moduleId.replace(/\//g, '-');
   return existing.includes(`<!-- augx-include: .claude/rules/${segment}/ -->`);
 }
-
-

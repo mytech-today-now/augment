@@ -25,6 +25,7 @@ import type {
 interface LinkOptions {
   version?: string;
   mirror?: string;
+  force?: boolean;
   verbose?: boolean;
 }
 
@@ -184,6 +185,7 @@ export async function linkCommand(moduleName: string, options: LinkOptions): Pro
       augxVersion,
       ignorePatterns: DEFAULT_EXPORT_IGNORE,
       now: () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
+      force: options.force,
       verbose: options.verbose,
       recordedByTarget: recordedEntriesByTarget(manifest, module.fullName),
       log: (msg) => console.log(chalk.gray(msg)),
@@ -201,7 +203,10 @@ export async function linkCommand(moduleName: string, options: LinkOptions): Pro
     );
     console.log(chalk.gray(`\nUse "augx show ${module.fullName}" to view module details`));
   } catch (error) {
-    console.error(chalk.red('Error linking module:'), error);
+    console.error(
+      chalk.red('Error linking module:'),
+      error instanceof Error ? error.message : error
+    );
     process.exit(1);
   }
 }

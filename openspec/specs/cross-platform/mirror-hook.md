@@ -26,6 +26,7 @@ augx link <module> [--mirror <tool>[,<tool>...]] [--verbose]
 | Flag | Required | Default | Description |
 |---|---|---|---|
 | `--mirror` | No | none, or value of `.augment/coordination.json.export.mirror` when true | One or more of `claude-code`, `cursor`, `windsurf`, `copilot`. |
+| `--force` | No | false | Allow single-file mirrors to overwrite drifted content after backing up the previous target under `.augment/mirror-backups/`. |
 | `--verbose` | No | false | Log materialization mode (`symlink` vs `copy`) for each file. |
 
 The pre-existing `augx link` behavior (resolving the module, updating coordination manifest, no per-tool materialization) is preserved when `--mirror` is absent and `export.mirror` is not `true`.
@@ -46,6 +47,8 @@ For `claude-code`, the directory layout is preserved file-for-file and the `CLAU
 ```
 <!-- augx-include: .claude/rules/<module>/ -->
 ```
+
+For single-file tools, the mirrored file is compared against the freshly rendered output before writing. If the file is unmarked or its content drifts from the generated banner and body, `augx link --mirror` refuses to overwrite it unless `--force` is supplied. Forced overwrites preserve a recoverable backup under `.augment/mirror-backups/`.
 
 ## Materialization Strategy
 

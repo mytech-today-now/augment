@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 
 import { Command } from 'commander';
 import chalk from 'chalk';
@@ -247,6 +247,7 @@ program
     '--mirror <tools>',
     'Mirror the module into native tool locations (claude-code, cursor, windsurf, copilot, all - comma-separated)'
   )
+  .option('--force', 'Overwrite drifted mirrored files after backing them up')
   .option('--verbose', 'Log materialization mode (symlink vs copy) for each file')
   .action(linkCommand);
 
