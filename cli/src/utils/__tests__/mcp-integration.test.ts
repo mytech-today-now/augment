@@ -3,27 +3,30 @@ import * as os from 'os';
 import * as path from 'path';
 import { EventEmitter } from 'events';
 import { spawn } from 'child_process';
+import { vi } from 'vitest';
 import {
   addMCPServer,
   discoverMCPTools,
   executeMCPCommand,
+  generateMCPSkillWrapper,
   loadMCPConfigs,
+  resolveMCPWrapperTarget,
   UNSUPPORTED_MCP_TRANSPORT_MESSAGE,
 } from '../mcp-integration';
 
-jest.mock('child_process', () => ({
-  spawn: jest.fn(),
-  execSync: jest.fn(),
+vi.mock('child_process', () => ({
+  spawn: vi.fn(),
+  execSync: vi.fn(),
 }));
 
-const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
+const mockSpawn = vi.mocked(spawn);
 
 type MockChildProcess = EventEmitter & {
   stdout: EventEmitter;
   stderr: EventEmitter;
   stdin: {
-    write: jest.Mock;
-    end: jest.Mock;
+    write: ReturnType<typeof vi.fn>;
+    end: ReturnType<typeof vi.fn>;
   };
 };
 
@@ -46,8 +49,8 @@ function createMockChildProcess(): MockChildProcess {
   child.stdout = new EventEmitter();
   child.stderr = new EventEmitter();
   child.stdin = {
-    write: jest.fn(),
-    end: jest.fn(),
+    write: vi.fn(),
+    end: vi.fn(),
   };
   return child;
 }
@@ -271,5 +274,67 @@ describe('MCP integration transport handling', () => {
     child.emit('exit', 1);
 
     await expect(toolsPromise).rejects.toThrow(/MCP server exited with code 1[\s\S]*boom/);
+  });
+
+  it('renders the same wrapper markdown for valid inputs', () => {
+    const repoRoot = newTempRoot();
+    writeServersConfig(repoRoot, [
+      {
+        name: 'github-mcp',
+        command: 'node',
+        transport: 'stdio',
+      },
+    ]);
+
+    const content = generateMCPSkillWrapper(
+      'github-mcp',
+      'search-repos',
+      'github-search',
+      'integration',
+      repoRoot
+    );
+
+    expect(content).toContain('id: github-search');
+    expect(content).toContain('name: search-repos (MCP)');
+    expect(content).toContain('category: integration');
+    expect(content).toContain('cliCommand: augx mcp exec github-mcp search-repos');
+    expect(content).toContain('augx skill inject github-search');
+  });
+
+  it('keeps valid wrapper paths inside the selected skills category', () => {
+    const repoRoot = newTempRoot();
+    const wrapperTarget = resolveMCPWrapperTarget('integration', 'github-search', repoRoot);
+
+    expect(wrapperTarget).toEqual({
+      category: 'integration',
+      skillId: 'github-search',
+      skillsDir: path.join(repoRoot, 'skills', 'integration'),
+      outputPath: path.join(repoRoot, 'skills', 'integration', 'github-search.md'),
+    });
+  });
+
+  it('normalizes surrounding whitespace without leaving the skills tree', () => {
+    const repoRoot = newTempRoot();
+    const wrapperTarget = resolveMCPWrapperTarget(' integration ', ' github-search ', repoRoot);
+
+    expect(wrapperTarget.category).toBe('integration');
+    expect(wrapperTarget.skillId).toBe('github-search');
+    expect(wrapperTarget.outputPath).toBe(
+      path.join(repoRoot, 'skills', 'integration', 'github-search.md')
+    );
+  });
+
+  it.each([
+    ['skill traversal', 'integration', '../../escape'],
+    ['category traversal', '../integration', 'github-search'],
+    ['empty skill id', 'integration', ''],
+    ['whitespace skill id', 'integration', '   '],
+    ['empty category', '   ', 'github-search'],
+  ])('rejects %s', (_label, category, skillId) => {
+    const repoRoot = newTempRoot();
+
+    expect(() => resolveMCPWrapperTarget(category, skillId, repoRoot)).toThrow(
+      /Invalid MCP wrapper/
+    );
   });
 });

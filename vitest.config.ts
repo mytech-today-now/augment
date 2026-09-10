@@ -2,11 +2,16 @@ import { defineConfig } from 'vitest/config';
 import path from 'path';
 
 export default defineConfig({
+  poolOptions: {
+    threads: {
+      singleThread: true
+    }
+  },
   test: {
     globals: true,
     environment: 'node',
     setupFiles: ['./tests/setup.ts'],
-    include: ['tests/**/*.test.ts'],
+    include: ['tests/**/*.test.ts', 'cli/src/utils/__tests__/**/*.test.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],
@@ -33,11 +38,6 @@ export default defineConfig({
     hookTimeout: 10000,
     isolate: true,
     pool: 'forks',
-    poolOptions: {
-      threads: {
-        singleThread: true
-      }
-    },
     maxConcurrency: 1
   },
   resolve: {

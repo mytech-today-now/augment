@@ -35,6 +35,73 @@ export interface MCPServerInfo {
   connected: boolean;
 }
 
+export interface MCPWrapperTarget {
+  category: string;
+  skillId: string;
+  skillsDir: string;
+  outputPath: string;
+}
+
+const MCP_WRAPPER_SEGMENT_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+function normalizeMCPWrapperSegment(
+  segment: string,
+  fieldName: 'category' | 'skill id'
+): string {
+  const normalized = segment.trim();
+
+  if (normalized.length === 0) {
+    throw new Error(`Invalid MCP wrapper ${fieldName}: value is empty`);
+  }
+
+  if (!MCP_WRAPPER_SEGMENT_PATTERN.test(normalized)) {
+    throw new Error(
+      `Invalid MCP wrapper ${fieldName}: "${segment}" must be a simple slug without path separators or whitespace`
+    );
+  }
+
+  return normalized;
+}
+
+function isPathWithinRoot(rootPath: string, candidatePath: string): boolean {
+  const relativePath = path.relative(rootPath, candidatePath);
+  return (
+    relativePath.length === 0 ||
+    (!relativePath.startsWith('..') && !path.isAbsolute(relativePath))
+  );
+}
+
+/**
+ * Resolve the target path for an MCP skill wrapper.
+ *
+ * The category and skill ID must be simple slugs. The returned path is always
+ * anchored beneath `skills/<category>`.
+ */
+export function resolveMCPWrapperTarget(
+  category: string,
+  skillId: string,
+  repoRoot: string = process.cwd()
+): MCPWrapperTarget {
+  const rootPath = path.resolve(repoRoot);
+  const safeCategory = normalizeMCPWrapperSegment(category, 'category');
+  const safeSkillId = normalizeMCPWrapperSegment(skillId, 'skill id');
+  const skillsDir = path.join(rootPath, 'skills', safeCategory);
+  const outputPath = path.join(skillsDir, `${safeSkillId}.md`);
+
+  if (!isPathWithinRoot(skillsDir, outputPath)) {
+    throw new Error(
+      `Invalid MCP wrapper path: ${outputPath} escapes the skills/${safeCategory} directory`
+    );
+  }
+
+  return {
+    category: safeCategory,
+    skillId: safeSkillId,
+    skillsDir,
+    outputPath
+  };
+}
+
 /**
  * Get MCP configuration directory
  */

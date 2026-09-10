@@ -6,7 +6,6 @@
 
 import chalk from 'chalk';
 import * as fs from 'fs';
-import * as path from 'path';
 import {
   loadMCPConfigs,
   addMCPServer,
@@ -16,6 +15,7 @@ import {
   discoverMCPTools,
   isMCPorterAvailable,
   generateCLIWithMCPorter,
+  resolveMCPWrapperTarget,
   MCPServerConfig
 } from '../utils/mcp-integration';
 
@@ -158,23 +158,27 @@ export async function mcpWrapCommand(
   } = {}
 ): Promise<void> {
   try {
-    const category = options.category || 'integration';
-    const skillContent = generateMCPSkillWrapper(serverName, toolName, skillId, category);
+    const category = options.category ?? 'integration';
+    const wrapperTarget = resolveMCPWrapperTarget(category, skillId, process.cwd());
+    const skillContent = generateMCPSkillWrapper(
+      serverName,
+      toolName,
+      wrapperTarget.skillId,
+      wrapperTarget.category
+    );
 
-    // Determine output path
-    const skillsDir = path.join(process.cwd(), 'skills', category);
-    if (!fs.existsSync(skillsDir)) {
-      fs.mkdirSync(skillsDir, { recursive: true });
+    // Ensure the wrapper directory exists before writing the file.
+    if (!fs.existsSync(wrapperTarget.skillsDir)) {
+      fs.mkdirSync(wrapperTarget.skillsDir, { recursive: true });
     }
 
-    const outputPath = path.join(skillsDir, `${skillId}.md`);
-    fs.writeFileSync(outputPath, skillContent, 'utf-8');
+    fs.writeFileSync(wrapperTarget.outputPath, skillContent, 'utf-8');
 
-    console.log(chalk.green(`✓ Generated skill wrapper: ${skillId}`));
+    console.log(chalk.green(`✓ Generated skill wrapper: ${wrapperTarget.skillId}`));
     console.log(chalk.gray(`  Server: ${serverName}`));
     console.log(chalk.gray(`  Tool: ${toolName}`));
-    console.log(chalk.gray(`  Category: ${category}`));
-    console.log(chalk.gray(`  Output: ${outputPath}`));
+    console.log(chalk.gray(`  Category: ${wrapperTarget.category}`));
+    console.log(chalk.gray(`  Output: ${wrapperTarget.outputPath}`));
   } catch (error) {
     console.error(chalk.red(`Error generating skill wrapper: ${formatError(error)}`));
     process.exit(1);

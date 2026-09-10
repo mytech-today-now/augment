@@ -3,6 +3,9 @@
  * Tests MCP command execution layer
  */
 
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import * as mcpCommands from '../mcp';
 import * as mcpIntegration from '../../utils/mcp-integration';
 
@@ -191,6 +194,76 @@ describe('MCP Commands', () => {
         expect.stringContaining('Error discovering tools: HTTP transport is not yet supported, use stdio')
       );
       expect(processExitSpy).toHaveBeenCalledWith(1);
+    });
+  });
+
+  describe('mcpWrapCommand', () => {
+    it('writes the wrapper under skills/<category>/<skillId>.md', async () => {
+      const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'augx-mcp-wrap-'));
+      const cwdSpy = jest.spyOn(process, 'cwd').mockReturnValue(repoRoot);
+      const skillsDir = path.join(repoRoot, 'skills', 'retrieval');
+      const outputPath = path.join(skillsDir, 'github-search.md');
+
+      (mcpIntegration.resolveMCPWrapperTarget as jest.Mock).mockReturnValue({
+        category: 'retrieval',
+        skillId: 'github-search',
+        skillsDir,
+        outputPath
+      });
+      (mcpIntegration.generateMCPSkillWrapper as jest.Mock).mockReturnValue('generated wrapper');
+
+      try {
+        await mcpCommands.mcpWrapCommand('github-mcp', 'search-repos', 'github-search', {
+          category: 'retrieval'
+        });
+
+        expect(mcpIntegration.resolveMCPWrapperTarget).toHaveBeenCalledWith(
+          'retrieval',
+          'github-search',
+          repoRoot
+        );
+        expect(mcpIntegration.generateMCPSkillWrapper).toHaveBeenCalledWith(
+          'github-mcp',
+          'search-repos',
+          'github-search',
+          'retrieval'
+        );
+        expect(fs.existsSync(outputPath)).toBe(true);
+        expect(fs.readFileSync(outputPath, 'utf-8')).toBe('generated wrapper');
+      } finally {
+        cwdSpy.mockRestore();
+        fs.rmSync(repoRoot, { recursive: true, force: true });
+      }
+    });
+
+    it('rejects unsafe wrapper names before writing anything', async () => {
+      const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'augx-mcp-wrap-'));
+      const cwdSpy = jest.spyOn(process, 'cwd').mockReturnValue(repoRoot);
+      const skillsDir = path.join(repoRoot, 'skills', 'integration');
+      const escapedFile = path.join(repoRoot, 'skills', 'escape.md');
+
+      (mcpIntegration.resolveMCPWrapperTarget as jest.Mock).mockImplementation(() => {
+        throw new Error(
+          'Invalid MCP wrapper skill id: "../../escape" must be a simple slug without path separators or whitespace'
+        );
+      });
+
+      try {
+        await mcpCommands.mcpWrapCommand('github-mcp', 'search-repos', '../../escape', {
+          category: 'integration'
+        });
+
+        expect(mcpIntegration.generateMCPSkillWrapper).not.toHaveBeenCalled();
+        expect(fs.existsSync(skillsDir)).toBe(false);
+        expect(fs.existsSync(escapedFile)).toBe(false);
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Error generating skill wrapper:')
+        );
+        expect(processExitSpy).toHaveBeenCalledWith(1);
+      } finally {
+        cwdSpy.mockRestore();
+        fs.rmSync(repoRoot, { recursive: true, force: true });
+      }
     });
   });
 });
