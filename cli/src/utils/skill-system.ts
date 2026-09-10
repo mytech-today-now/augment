@@ -23,6 +23,11 @@ export interface SkillMetadata {
   replaces?: string[];
 }
 
+export interface ParsedSkillCliCommand {
+  command: string;
+  args: string[];
+}
+
 export interface Skill {
   metadata: SkillMetadata;
   content: string;
@@ -104,12 +109,12 @@ export function validateSkillMetadata(metadata: SkillMetadata): { valid: boolean
   }
   
   // Validate token budget
-  if (metadata.tokenBudget) {
+  if (typeof metadata.tokenBudget === 'number') {
     if (metadata.tokenBudget < 500) {
-      errors.push('Token budget too low: minimum 500 tokens');
+      errors.push('tokenBudget too low: minimum 500 tokens');
     }
     if (metadata.tokenBudget > 10000) {
-      errors.push('Token budget too high: maximum 10000 tokens');
+      errors.push('tokenBudget too high: maximum 10000 tokens');
     }
   }
   
@@ -117,10 +122,122 @@ export function validateSkillMetadata(metadata: SkillMetadata): { valid: boolean
   if (metadata.priority && !['critical', 'high', 'medium', 'low'].includes(metadata.priority)) {
     errors.push(`Invalid priority: ${metadata.priority}. Must be one of: critical, high, medium, low`);
   }
+
+  if (metadata.cliCommand !== undefined) {
+    if (typeof metadata.cliCommand !== 'string' || metadata.cliCommand.trim().length === 0) {
+      errors.push('Invalid cliCommand: must be a non-empty string');
+    } else {
+      try {
+        parseSkillCliCommand(metadata.cliCommand);
+      } catch (error) {
+        errors.push(`Invalid cliCommand: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+  }
   
   return {
     valid: errors.length === 0,
     errors
+  };
+}
+
+/**
+ * Parse a skill CLI command into an executable and literal argv.
+ *
+ * This tokenizer only treats whitespace and quote characters as structure.
+ * Shell operators such as `&&` and `|` remain plain arguments.
+ */
+export function parseSkillCliCommand(cliCommand: string): ParsedSkillCliCommand {
+  const input = cliCommand.trim();
+
+  if (input.length === 0) {
+    throw new Error('CLI command is empty');
+  }
+
+  const tokens: string[] = [];
+  let current = '';
+  let quote: '"' | "'" | null = null;
+  let escaping = false;
+  let tokenStarted = false;
+
+  const pushToken = (): void => {
+    if (!tokenStarted) {
+      return;
+    }
+
+    tokens.push(current);
+    current = '';
+    tokenStarted = false;
+  };
+
+  for (const char of input) {
+    if (escaping) {
+      if (char !== '"' && char !== '\\') {
+        current += '\\';
+      }
+
+      current += char;
+      tokenStarted = true;
+      escaping = false;
+      continue;
+    }
+
+    if (quote === '"') {
+      if (char === '\\') {
+        escaping = true;
+      } else if (char === '"') {
+        quote = null;
+      } else {
+        current += char;
+      }
+
+      tokenStarted = true;
+      continue;
+    }
+
+    if (quote === "'") {
+      if (char === "'") {
+        quote = null;
+      } else {
+        current += char;
+      }
+
+      tokenStarted = true;
+      continue;
+    }
+
+    if (char === '"' || char === "'") {
+      quote = char;
+      tokenStarted = true;
+      continue;
+    }
+
+    if (/\s/.test(char)) {
+      pushToken();
+      continue;
+    }
+
+    current += char;
+    tokenStarted = true;
+  }
+
+  if (escaping) {
+    throw new Error('CLI command ends with an incomplete escape sequence');
+  }
+
+  if (quote) {
+    throw new Error(`CLI command has an unterminated ${quote === '"' ? 'double' : 'single'} quote`);
+  }
+
+  pushToken();
+
+  if (tokens.length === 0 || tokens[0].length === 0) {
+    throw new Error('CLI command must name an executable');
+  }
+
+  return {
+    command: tokens[0],
+    args: tokens.slice(1)
   };
 }
 

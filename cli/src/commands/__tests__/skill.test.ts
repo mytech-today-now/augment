@@ -5,11 +5,9 @@
 
 import * as skillCommands from '../skill';
 import * as skillSystem from '../../utils/skill-system';
-import { spawn } from 'child_process';
 
 // Mock dependencies
 jest.mock('../../utils/skill-system');
-jest.mock('child_process');
 jest.mock('chalk', () => ({
   default: {
     blue: (str: string) => str,

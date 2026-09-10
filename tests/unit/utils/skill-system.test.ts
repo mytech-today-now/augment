@@ -3,11 +3,13 @@
  * Tests skill loading, validation, discovery, and injection
  */
 
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import {
   parseSkill,
   validateSkillMetadata,
+  parseSkillCliCommand,
   discoverSkills,
   findSkill,
   loadSkillDynamic,
@@ -18,13 +20,14 @@ import {
   getSkillsDir,
   getSkillPath,
   SKILL_CATEGORIES
-} from '../skill-system';
+} from '@cli/utils/skill-system';
 
 // Mock fs module
-jest.mock('fs');
+vi.mock('fs');
+const mockFs = vi.mocked(fs);
 
 // Mock chalk to avoid ESM issues
-jest.mock('chalk', () => ({
+vi.mock('chalk', () => ({
   default: {
     green: (str: string) => str,
     yellow: (str: string) => str,
@@ -52,7 +55,7 @@ describe('Skill System', () => {
   const mockSkillsDir = path.join(mockRepoRoot, 'skills');
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     clearSkillCache();
   });
 
@@ -92,7 +95,7 @@ priority: medium
 
 This is the skill body.`;
 
-      (fs.readFileSync as jest.Mock).mockReturnValue(mockContent);
+      mockFs.readFileSync.mockReturnValue(mockContent);
 
       const result = parseSkill('/test/skill.md');
 
@@ -109,7 +112,7 @@ This is the skill body.`;
 
 No frontmatter here.`;
 
-      (fs.readFileSync as jest.Mock).mockReturnValue(mockContent);
+      mockFs.readFileSync.mockReturnValue(mockContent);
 
       expect(() => parseSkill('/test/invalid.md')).toThrow('Missing frontmatter');
     });
@@ -177,6 +180,53 @@ No frontmatter here.`;
       expect(result.valid).toBe(false);
       expect(result.errors.some(e => e.includes('tokenBudget'))).toBe(true);
     });
+
+    it('should validate parseable cli commands and preserve literal metacharacters', () => {
+      const metadata = {
+        id: 'test-skill',
+        name: 'Test Skill',
+        version: '1.0.0',
+        category: 'retrieval' as const,
+        tags: ['test'],
+        tokenBudget: 1000,
+        priority: 'medium' as const,
+        cliCommand: 'node -e "process.stdout.write(\\"&& | quoted\\")" && | "two words"'
+      };
+
+      const result = validateSkillMetadata(metadata);
+      const parsed = parseSkillCliCommand(metadata.cliCommand);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+      expect(parsed).toEqual({
+        command: 'node',
+        args: [
+          '-e',
+          'process.stdout.write("&& | quoted")',
+          '&&',
+          '|',
+          'two words'
+        ]
+      });
+    });
+
+    it('should reject malformed cli commands', () => {
+      const metadata = {
+        id: 'test-skill',
+        name: 'Test Skill',
+        version: '1.0.0',
+        category: 'retrieval' as const,
+        tags: ['test'],
+        tokenBudget: 1000,
+        priority: 'medium' as const,
+        cliCommand: 'node -e "unterminated'
+      };
+
+      const result = validateSkillMetadata(metadata);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(error => error.includes('Invalid cliCommand'))).toBe(true);
+    });
   });
 
   describe('discoverSkills', () => {
@@ -187,13 +237,13 @@ No frontmatter here.`;
         generation: ['add-mcp-skill.md']
       };
 
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readdirSync as jest.Mock).mockImplementation((dirPath: string) => {
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readdirSync.mockImplementation((dirPath: string) => {
         const category = path.basename(dirPath);
         return mockFiles[category as keyof typeof mockFiles] || [];
       });
 
-      (fs.statSync as jest.Mock).mockReturnValue({ isDirectory: () => true });
+      mockFs.statSync.mockReturnValue({ isDirectory: () => true } as any);
 
       const mockSkillContent = `---
 id: test-skill
@@ -207,7 +257,7 @@ priority: medium
 
 # Test Content`;
 
-      (fs.readFileSync as jest.Mock).mockReturnValue(mockSkillContent);
+      mockFs.readFileSync.mockReturnValue(mockSkillContent);
 
       const result = discoverSkills(mockRepoRoot);
 
@@ -215,7 +265,7 @@ priority: medium
     });
 
     it('should return empty array when skills directory does not exist', () => {
-      (fs.existsSync as jest.Mock).mockReturnValue(false);
+      mockFs.existsSync.mockReturnValue(false);
 
       const result = discoverSkills(mockRepoRoot);
 
@@ -237,10 +287,10 @@ priority: high
 
 # SDK Query Skill`;
 
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readdirSync as jest.Mock).mockReturnValue(['sdk-query.md']);
-      (fs.statSync as jest.Mock).mockReturnValue({ isDirectory: () => true });
-      (fs.readFileSync as jest.Mock).mockReturnValue(mockSkillContent);
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readdirSync.mockReturnValue(['sdk-query.md']);
+      mockFs.statSync.mockReturnValue({ isDirectory: () => true } as any);
+      mockFs.readFileSync.mockReturnValue(mockSkillContent);
 
       const result = findSkill('sdk-query', mockRepoRoot);
 
@@ -250,9 +300,9 @@ priority: high
     });
 
     it('should return null for non-existent skill', () => {
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readdirSync as jest.Mock).mockReturnValue([]);
-      (fs.statSync as jest.Mock).mockReturnValue({ isDirectory: () => true });
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readdirSync.mockReturnValue([]);
+      mockFs.statSync.mockReturnValue({ isDirectory: () => true } as any);
 
       const result = findSkill('non-existent-skill', mockRepoRoot);
 
@@ -278,10 +328,10 @@ priority: low
 
 # Simple Skill`;
 
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readdirSync as jest.Mock).mockReturnValue(['simple-skill.md']);
-      (fs.statSync as jest.Mock).mockReturnValue({ isDirectory: () => true });
-      (fs.readFileSync as jest.Mock).mockReturnValue(mockSkillContent);
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readdirSync.mockReturnValue(['simple-skill.md']);
+      mockFs.statSync.mockReturnValue({ isDirectory: () => true } as any);
+      mockFs.readFileSync.mockReturnValue(mockSkillContent);
 
       const result = loadSkillDynamic('simple-skill', { cache: false });
 
@@ -304,17 +354,17 @@ priority: low
 
 # Cached Skill`;
 
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readdirSync as jest.Mock).mockReturnValue(['cached-skill.md']);
-      (fs.statSync as jest.Mock).mockReturnValue({ isDirectory: () => true });
-      (fs.readFileSync as jest.Mock).mockReturnValue(mockSkillContent);
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readdirSync.mockReturnValue(['cached-skill.md']);
+      mockFs.statSync.mockReturnValue({ isDirectory: () => true } as any);
+      mockFs.readFileSync.mockReturnValue(mockSkillContent);
 
       // First load
       const result1 = loadSkillDynamic('cached-skill', { cache: true });
       expect(result1).not.toBeNull();
 
       // Clear mocks to verify cache is used
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       // Second load should use cache
       const result2 = loadSkillDynamic('cached-skill', { cache: true });
@@ -326,9 +376,9 @@ priority: low
     });
 
     it('should return null for non-existent skill', () => {
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readdirSync as jest.Mock).mockReturnValue([]);
-      (fs.statSync as jest.Mock).mockReturnValue({ isDirectory: () => true });
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readdirSync.mockReturnValue([]);
+      mockFs.statSync.mockReturnValue({ isDirectory: () => true } as any);
 
       const result = loadSkillDynamic('non-existent', { cache: false });
 
@@ -361,10 +411,10 @@ priority: low
 # Skill 2`
       };
 
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readdirSync as jest.Mock).mockImplementation(() => ['skill1.md', 'skill2.md']);
-      (fs.statSync as jest.Mock).mockReturnValue({ isDirectory: () => true });
-      (fs.readFileSync as jest.Mock).mockImplementation((filePath: string) => {
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readdirSync.mockImplementation(() => ['skill1.md', 'skill2.md']);
+      mockFs.statSync.mockReturnValue({ isDirectory: () => true } as any);
+      mockFs.readFileSync.mockImplementation((filePath: string) => {
         if (filePath.includes('skill1')) return mockSkills.skill1;
         if (filePath.includes('skill2')) return mockSkills.skill2;
         return '';
@@ -389,10 +439,10 @@ priority: low
 ---
 # Duplicate Skill`;
 
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readdirSync as jest.Mock).mockReturnValue(['duplicate-skill.md']);
-      (fs.statSync as jest.Mock).mockReturnValue({ isDirectory: () => true });
-      (fs.readFileSync as jest.Mock).mockReturnValue(mockSkillContent);
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readdirSync.mockReturnValue(['duplicate-skill.md']);
+      mockFs.statSync.mockReturnValue({ isDirectory: () => true } as any);
+      mockFs.readFileSync.mockReturnValue(mockSkillContent);
 
       const result = loadSkillsBatch(['duplicate-skill', 'duplicate-skill'], { cache: false });
 
@@ -443,10 +493,10 @@ priority: low
 ---
 # Cached Skill`;
 
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readdirSync as jest.Mock).mockReturnValue(['cached-skill.md']);
-      (fs.statSync as jest.Mock).mockReturnValue({ isDirectory: () => true });
-      (fs.readFileSync as jest.Mock).mockReturnValue(mockSkillContent);
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readdirSync.mockReturnValue(['cached-skill.md']);
+      mockFs.statSync.mockReturnValue({ isDirectory: () => true } as any);
+      mockFs.readFileSync.mockReturnValue(mockSkillContent);
 
       // Load skill to populate cache
       loadSkillDynamic('cached-skill', { cache: true });

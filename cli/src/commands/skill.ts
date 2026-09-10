@@ -11,6 +11,7 @@ import {
   discoverSkills,
   findSkill,
   validateSkillMetadata,
+  parseSkillCliCommand,
   loadSkillDynamic,
   loadSkillsBatch,
   getSkillContentForInjection,
@@ -18,6 +19,66 @@ import {
   getSkillCacheStats,
   Skill
 } from '../utils/skill-system';
+
+class SkillExecExitError extends Error {
+  constructor(
+    public readonly exitCode: number,
+    message: string
+  ) {
+    super(message);
+    this.name = 'SkillExecExitError';
+  }
+}
+
+function renderSkillExecArg(arg: string): string {
+  if (/^[A-Za-z0-9_./:@+=,-]+$/.test(arg)) {
+    return arg;
+  }
+
+  return JSON.stringify(arg);
+}
+
+function renderSkillExecCommand(cliCommand: string, args: string[]): string {
+  if (args.length === 0) {
+    return cliCommand;
+  }
+
+  return `${cliCommand} ${args.map(renderSkillExecArg).join(' ')}`;
+}
+
+function formatSkillCommandForMessage(cliCommand: string): string {
+  return JSON.stringify(cliCommand);
+}
+
+function logSkillExecFailure(message: string): void {
+  console.error(chalk.red(message));
+  console.error(
+    chalk.gray(
+      'Skill commands are executed directly without a shell. If this looks like shell syntax, rewrite it as an executable followed by literal arguments.'
+    )
+  );
+}
+
+type SkillSpawnFunction = (
+  command: string,
+  args: string[],
+  options: {
+    stdio: 'inherit';
+    shell: false;
+  }
+) => import('child_process').ChildProcess;
+
+function defaultSkillSpawn(
+  command: string,
+  args: string[],
+  options: {
+    stdio: 'inherit';
+    shell: false;
+  }
+): import('child_process').ChildProcess {
+  const { spawn } = require('child_process') as typeof import('child_process');
+  return spawn(command, args, options);
+}
 
 /**
  * List all available skills
@@ -201,7 +262,19 @@ export async function skillSearchCommand(query: string, options: { json?: boolea
 /**
  * Execute a skill's CLI command
  */
-export async function skillExecCommand(skillId: string, args: string[] = []): Promise<void> {
+export async function skillExecCommand(
+  skillId: string,
+  args: string[] = [],
+  spawnImpl: SkillSpawnFunction = defaultSkillSpawn
+): Promise<void> {
+  return skillExecCommandWithSpawn(skillId, args, spawnImpl);
+}
+
+export async function skillExecCommandWithSpawn(
+  skillId: string,
+  args: string[],
+  spawnImpl: SkillSpawnFunction
+): Promise<void> {
   try {
     const skill = findSkill(skillId);
 
@@ -211,36 +284,86 @@ export async function skillExecCommand(skillId: string, args: string[] = []): Pr
     }
 
     if (!skill.metadata.cliCommand) {
-      console.error(chalk.red(`Skill ${skillId} does not have a CLI command defined`));
+      logSkillExecFailure(`Skill ${skillId} does not have a CLI command defined`);
       process.exit(1);
+      return;
+    }
+
+    const cliCommand = skill.metadata.cliCommand;
+    let parsedCommand: ReturnType<typeof parseSkillCliCommand>;
+
+    try {
+      parsedCommand = parseSkillCliCommand(cliCommand);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      logSkillExecFailure(
+        `Skill ${skillId} cannot execute command ${formatSkillCommandForMessage(cliCommand)}: ${reason}`
+      );
+      process.exit(1);
+      return;
     }
 
     console.log(chalk.blue(`Executing skill: ${skill.metadata.name}`));
-    console.log(chalk.gray(`Command: ${skill.metadata.cliCommand} ${args.join(' ')}\n`));
+    console.log(chalk.gray(`Command: ${renderSkillExecCommand(cliCommand, args)}\n`));
 
-    // Execute the CLI command
-    const { spawn } = await import('child_process');
-    const [command, ...baseArgs] = skill.metadata.cliCommand.split(' ');
-    const allArgs = [...baseArgs, ...args];
+    await new Promise<void>((resolve, reject) => {
+      const child = spawnImpl(parsedCommand.command, [...parsedCommand.args, ...args], {
+        stdio: 'inherit',
+        shell: false
+      });
 
-    const child = spawn(command, allArgs, {
-      stdio: 'inherit',
-      shell: true
-    });
+      child.on('error', (error) => {
+        const spawnError = error as NodeJS.ErrnoException;
 
-    child.on('error', (error) => {
-      console.error(chalk.red(`Failed to execute command: ${error.message}`));
-      process.exit(1);
-    });
+        if (spawnError.code === 'ENOENT') {
+          reject(
+            new Error(
+              `Skill ${skillId} cannot execute command ${formatSkillCommandForMessage(cliCommand)}: executable not found`
+            )
+          );
+          return;
+        }
 
-    child.on('exit', (code) => {
-      if (code !== 0) {
-        console.error(chalk.red(`Command exited with code ${code}`));
-        process.exit(code || 1);
-      }
+        reject(
+          new Error(
+            `Skill ${skillId} failed to execute command ${formatSkillCommandForMessage(cliCommand)}: ${spawnError.message}`
+          )
+        );
+      });
+
+      child.on('exit', (code, signal) => {
+        if (signal) {
+          reject(
+            new SkillExecExitError(
+              1,
+              `Skill ${skillId} command ${formatSkillCommandForMessage(cliCommand)} terminated by signal ${signal}`
+            )
+          );
+          return;
+        }
+
+        if (code === 0) {
+          resolve();
+          return;
+        }
+
+        reject(
+          new SkillExecExitError(
+            code || 1,
+            `Skill ${skillId} command ${formatSkillCommandForMessage(cliCommand)} exited with code ${code || 1}`
+          )
+        );
+      });
     });
   } catch (error) {
-    console.error(chalk.red(`Error executing skill: ${error}`));
+    const message = error instanceof Error ? error.message : String(error);
+    logSkillExecFailure(message);
+
+    if (error instanceof SkillExecExitError) {
+      process.exit(error.exitCode);
+      return;
+    }
+
     process.exit(1);
   }
 }
