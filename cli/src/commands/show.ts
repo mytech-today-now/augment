@@ -684,12 +684,31 @@ async function showModuleContent(module: Module, options: ShowModuleOptions): Pr
 /**
  * Display individual file content with line numbers and optional syntax highlighting
  */
+function normalizeModuleRelativePath(filePath: string): string {
+  // Accept either separator style so module-relative lookups stay portable.
+  return filePath.replace(/[\\/]+/g, path.sep);
+}
+
+function isUnsafeModuleRelativePath(filePath: string): boolean {
+  if (path.isAbsolute(filePath)) {
+    return true;
+  }
+
+  return filePath.split(path.sep).some((segment) => segment === '..');
+}
+
 async function showModuleFile(module: Module, filePath: string, options: ShowModuleOptions): Promise<void> {
-  // Resolve file path (support both absolute and relative paths)
-  const attemptedPath = path.isAbsolute(filePath)
-    ? path.resolve(filePath)
-    : path.resolve(module.path, filePath);
-  const fullPath = resolveContainedPath(module.path, filePath);
+  const normalizedFilePath = normalizeModuleRelativePath(filePath);
+
+  if (isUnsafeModuleRelativePath(normalizedFilePath)) {
+    console.error(chalk.red('File not found: path is outside the selected module'));
+    console.log(chalk.gray('\nOnly module-relative paths are supported.'));
+    process.exit(1);
+  }
+
+  // Resolve the requested file only after the path has been validated as module-relative.
+  const attemptedPath = path.resolve(module.path, normalizedFilePath);
+  const fullPath = resolveContainedPath(module.path, normalizedFilePath);
 
   // Check if file exists
   if (!fullPath || !fs.existsSync(fullPath)) {

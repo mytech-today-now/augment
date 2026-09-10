@@ -5,6 +5,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import { execSync } from 'child_process';
 
@@ -137,6 +138,18 @@ describe('Module Inspection Integration Tests', () => {
       expect(stderr).toBe('');
     });
 
+    it('should reject absolute file paths by default', () => {
+      const absoluteRulePath = path.resolve(TEST_MODULE_PATH, 'rules', 'test-rule.md').replace(/\\/g, '/');
+      const { stdout, stderr, status } = runCli(`node ${CLI_PATH} show module test-module ${absoluteRulePath}`);
+      const output = `${stdout}${stderr}`;
+
+      expect(status).toBe(1);
+      expect(output).toContain('File not found: path is outside the selected module');
+      expect(output).toContain('Only module-relative paths are supported.');
+      expect(output).not.toContain('Searched in:');
+      expect(output).not.toContain('Test Rule');
+    });
+
     it('should search module content with the module search flag', () => {
       fs.writeFileSync(
         path.join(TEST_MODULE_PATH, 'rules', 'test-rule.md'),
@@ -231,8 +244,48 @@ describe('Module Inspection Integration Tests', () => {
       const output = `${stdout}${stderr}`;
 
       expect(status).toBe(1);
-      expect(output).toContain('File not found: ../../outside.txt');
+      expect(output).toContain('File not found: path is outside the selected module');
+      expect(output).toContain('Only module-relative paths are supported.');
+      expect(output).not.toContain('Searched in:');
       expect(output).not.toContain('TOP-SECRET-OUTSIDE-CONTENT');
+    });
+
+    it('should reject symlink escapes outside the module root', () => {
+      const escapeTargetDir = fs.mkdtempSync(path.join(os.tmpdir(), 'augx-module-inspection-escape-'));
+      const escapeLinkPath = path.join(TEST_MODULE_PATH, 'rules', 'escape');
+      const escapeSecretPath = path.join(escapeTargetDir, 'secret.md');
+
+      fs.writeFileSync(escapeSecretPath, 'TOP-SECRET-OUTSIDE-CONTENT\n', 'utf-8');
+      fs.symlinkSync(escapeTargetDir, escapeLinkPath, process.platform === 'win32' ? 'junction' : 'dir');
+
+      try {
+        const { stdout, stderr, status } = runCli(`node ${CLI_PATH} show module test-module rules/escape/secret.md`);
+        const output = `${stdout}${stderr}`;
+
+        expect(status).toBe(1);
+        expect(output).toContain('File not found: rules/escape/secret.md');
+        expect(output).toContain('Searched in:');
+        expect(output).not.toContain('TOP-SECRET-OUTSIDE-CONTENT');
+      } finally {
+        fs.rmSync(escapeLinkPath, { force: true });
+        fs.rmSync(escapeTargetDir, { recursive: true, force: true });
+      }
+    });
+
+    it('should redact permitted file content in secure mode', () => {
+      const secretFilePath = path.join(TEST_MODULE_PATH, 'rules', 'secure-secret.md');
+      fs.writeFileSync(secretFilePath, 'API_KEY=abcdefghijklmnop\n', 'utf-8');
+
+      try {
+        const { stdout, stderr, status } = runCli(`node ${CLI_PATH} show module test-module rules/secure-secret.md --secure`);
+        const output = `${stdout}${stderr}`;
+
+        expect(status).toBe(0);
+        expect(output).toContain('[REDACTED_API_KEY]');
+        expect(output).not.toContain('abcdefghijklmnop');
+      } finally {
+        fs.rmSync(secretFilePath, { force: true });
+      }
     });
   });
 });

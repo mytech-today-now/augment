@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import * as os from 'os';
 import * as path from 'path';
 
 const fsMocks = vi.hoisted(() => ({
@@ -20,7 +21,7 @@ vi.mock('fs', async () => {
 });
 
 import * as fs from 'fs';
-import { findModule } from '@cli/utils/module-system';
+import { findModule, resolveContainedPath } from '@cli/utils/module-system';
 
 const CATALOG_ROOT = path.join(process.cwd(), 'augment-extensions');
 const MODULE_FIXTURES: string[] = [];
@@ -138,5 +139,101 @@ describe('Module boundary containment', () => {
 
     expect(findModule('coding-standards/permission-fixture/locked')).toBeNull();
     expect(readSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('resolveContainedPath', () => {
+  function withTempRoot<T>(fn: (rootDir: string) => T): T {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'augx-resolve-contained-'));
+    try {
+      return fn(rootDir);
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  }
+
+  it('returns a canonical path for an in-root module file', () => {
+    withTempRoot((rootDir) => {
+      const nestedFile = path.join(rootDir, 'rules', 'nested', 'guide.md');
+      fs.mkdirSync(path.dirname(nestedFile), { recursive: true });
+      fs.writeFileSync(nestedFile, '# Guide\n', 'utf-8');
+
+      expect(resolveContainedPath(rootDir, 'rules/nested/guide.md')).toBe(fs.realpathSync(nestedFile));
+    });
+  });
+
+  it('returns null for absolute paths outside the root', () => {
+    withTempRoot((rootDir) => {
+      const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'augx-outside-'));
+      const outsideFile = path.join(outsideDir, 'secrets.md');
+      fs.writeFileSync(outsideFile, 'TOP-SECRET-OUTSIDE-CONTENT\n', 'utf-8');
+
+      try {
+        expect(resolveContainedPath(rootDir, outsideFile)).toBeNull();
+      } finally {
+        fs.rmSync(outsideDir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  it('returns null for parent-relative escapes', () => {
+    withTempRoot((rootDir) => {
+      const parentDir = path.dirname(rootDir);
+      const outsideDir = fs.mkdtempSync(path.join(parentDir, 'augx-parent-escape-'));
+      const outsideFile = path.join(outsideDir, 'outside.md');
+      fs.writeFileSync(outsideFile, 'TOP-SECRET-OUTSIDE-CONTENT\n', 'utf-8');
+
+      try {
+        const escapePath = path.relative(rootDir, outsideFile);
+        expect(escapePath).toMatch(/^\.\.(?:[\\/].+)?/);
+        expect(resolveContainedPath(rootDir, escapePath)).toBeNull();
+      } finally {
+        fs.rmSync(outsideDir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  it('returns null for symlink escapes that resolve outside the root', () => {
+    withTempRoot((rootDir) => {
+      const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'augx-symlink-outside-'));
+      const outsideFile = path.join(outsideDir, 'secret.md');
+      const linkDir = path.join(rootDir, 'rules', 'escape');
+
+      fs.mkdirSync(path.dirname(linkDir), { recursive: true });
+      fs.writeFileSync(outsideFile, 'TOP-SECRET-OUTSIDE-CONTENT\n', 'utf-8');
+      fs.symlinkSync(outsideDir, linkDir, process.platform === 'win32' ? 'junction' : 'dir');
+
+      try {
+        expect(resolveContainedPath(rootDir, 'rules/escape/secret.md')).toBeNull();
+      } finally {
+        fs.rmSync(linkDir, { force: true });
+        fs.rmSync(outsideDir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  it('returns null when canonicalization hits a permission error', () => {
+    withTempRoot((rootDir) => {
+      const candidate = path.join(rootDir, 'rules', 'locked.md');
+      fs.mkdirSync(path.dirname(candidate), { recursive: true });
+      fs.writeFileSync(candidate, 'locked\n', 'utf-8');
+
+      const eacces = new Error('EACCES: permission denied, realpath') as NodeJS.ErrnoException;
+      eacces.code = 'EACCES';
+      const originalRealpathSync = fsMocks.realpathActual!;
+      vi.mocked(fs.realpathSync).mockImplementation((target: fs.PathLike) => {
+        const normalized = path.resolve(String(target));
+        if (normalized === candidate) {
+          throw eacces;
+        }
+        return originalRealpathSync(target);
+      });
+
+      try {
+        expect(resolveContainedPath(rootDir, 'rules/locked.md')).toBeNull();
+      } finally {
+        resetFsMocks();
+      }
+    });
   });
 });
