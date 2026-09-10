@@ -10,6 +10,8 @@ Augment Extensions is the structural layer between your rule modules and the AI 
 
 The repository exists because rule content for AI agents has outgrown the surfaces individual tools provide. Each tool reserves a small budget for instructions the agent sees before it reasons about your code. Augment Code allocates roughly 49,400 characters to `.augment/`. Cursor, Windsurf, Copilot, and Claude Code each have their own constraints. The modules here live outside those budgets, are loaded on demand, and are emitted into the tool-native shapes those budgets expect, so the same module set can drive every tool without manual duplication.
 
+Current release: 3.1.3 hardens module and file containment in inspection flows, keeps mirror reconciliation aligned with the module tree, and tightens catalog hook layout handling.
+
 ## Table of Contents
 
 - [Why This Exists](#why-this-exists)

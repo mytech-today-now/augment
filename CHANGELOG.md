@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.3] - 2026-09-10
+
+### Security
+
+- Hardened module and file containment in `augx show` and related resolution paths so inspection stays inside the requested module boundary
+- Tightened module path resolution in link, unlink, and catalog flows to close off traversal edge cases outside the module tree
+
+### Fixed
+
+- Reconciled single-file mirror bookkeeping so tracked symlinks and copied mirrors stay aligned with the recorded source
+- Fixed duplicate `--search` handling in `augx show`, keeping module search parsing stable
+- Strengthened catalog-hook layout guards so `MODULES.md` regeneration stays consistent with hook installation
+
 ## [3.1.2] - 2026-04-15
 
 ### Added
