@@ -202,6 +202,14 @@ describe('GUI Components', () => {
 
       expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('HTML Standards'));
       expect(consoleLogSpy).not.toHaveBeenCalledWith(expect.stringContaining('Python Standards'));
+      expect(mockPrompt).toHaveBeenNthCalledWith(
+        2,
+        expect.arrayContaining([
+          expect.objectContaining({
+            prefix: '🔍'
+          })
+        ])
+      );
     });
 
     it('should filter modules by description', async () => {
@@ -300,6 +308,8 @@ describe('GUI Components', () => {
       expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Keyboard Shortcuts'));
       expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Ctrl+A'));
       expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Ctrl+S'));
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Screen reader compatible'));
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Keyboard-only navigation'));
     });
 
     it('should show keyboard shortcut hint on startup', async () => {
@@ -357,6 +367,7 @@ describe('GUI Components', () => {
       expect(mockPrompt).toHaveBeenCalledWith(
         expect.arrayContaining([
           expect.objectContaining({
+            prefix: '📦',
             message: expect.stringContaining('↑↓')
           })
         ])

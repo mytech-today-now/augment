@@ -146,6 +146,13 @@ export function detectSubcommands(helpText: string): string[] {
  * Extract command names from matched text
  */
 function extractCommandNames(text: string): string[] {
+  if (text.includes('|') && !text.includes('\n')) {
+    return text
+      .split('|')
+      .map(command => command.trim())
+      .filter(Boolean);
+  }
+
   const lines = text.split('\n');
   const commands: string[] = [];
   

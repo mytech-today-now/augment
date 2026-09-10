@@ -1,17 +1,16 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   useNavigationState,
   loadNavigationState,
   saveNavigationState,
   clearNavigationState,
-  NavigationState,
+  type NavigationState
 } from '@cli/gui/state/navigation-state';
 
 describe('NavigationState', () => {
-  // Mock localStorage
   const localStorageMock = (() => {
     let store: Record<string, string> = {};
+
     return {
       getItem: (key: string) => store[key] || null,
       setItem: (key: string, value: string) => {
@@ -22,21 +21,22 @@ describe('NavigationState', () => {
       },
       clear: () => {
         store = {};
-      },
+      }
     };
   })();
 
   beforeEach(() => {
-    Object.defineProperty(global, 'localStorage', {
+    Object.defineProperty(globalThis, 'localStorage', {
       value: localStorageMock,
       writable: true,
+      configurable: true
     });
     localStorageMock.clear();
-    vi.clearAllMocks();
   });
 
   afterEach(() => {
     localStorageMock.clear();
+    delete (globalThis as { localStorage?: typeof localStorageMock }).localStorage;
   });
 
   describe('loadNavigationState', () => {
@@ -50,7 +50,7 @@ describe('NavigationState', () => {
         currentCategory: 'coding-standards',
         currentModule: 'typescript',
         expandedCategories: new Set(['coding-standards', 'workflows']),
-        focusedComponent: 'tree',
+        focusedComponent: 'tree'
       };
 
       saveNavigationState(state);
@@ -59,13 +59,16 @@ describe('NavigationState', () => {
       expect(loaded).not.toBeNull();
       expect(loaded?.currentCategory).toBe('coding-standards');
       expect(loaded?.currentModule).toBe('typescript');
-      expect(loaded?.expandedCategories).toEqual(new Set(['coding-standards', 'workflows']));
+      expect(loaded?.expandedCategories).toEqual(
+        new Set(['coding-standards', 'workflows'])
+      );
       expect(loaded?.focusedComponent).toBe('tree');
     });
 
     it('should handle corrupted localStorage data', () => {
       localStorageMock.setItem('augx_navigation_state', 'invalid json');
       const result = loadNavigationState();
+
       expect(result).toBeNull();
     });
   });
@@ -76,11 +79,12 @@ describe('NavigationState', () => {
         currentCategory: 'domain-rules',
         currentModule: 'api-design',
         expandedCategories: new Set(['domain-rules']),
-        focusedComponent: 'preview',
+        focusedComponent: 'preview'
       };
 
       saveNavigationState(state);
       const stored = localStorageMock.getItem('augx_navigation_state');
+
       expect(stored).not.toBeNull();
 
       const parsed = JSON.parse(stored!);
@@ -95,13 +99,13 @@ describe('NavigationState', () => {
         currentCategory: null,
         currentModule: null,
         expandedCategories: new Set(['cat1', 'cat2', 'cat3']),
-        focusedComponent: 'tree',
+        focusedComponent: 'tree'
       };
 
       saveNavigationState(state);
       const stored = localStorageMock.getItem('augx_navigation_state');
       const parsed = JSON.parse(stored!);
-      
+
       expect(Array.isArray(parsed.expandedCategories)).toBe(true);
       expect(parsed.expandedCategories).toContain('cat1');
       expect(parsed.expandedCategories).toContain('cat2');
@@ -115,7 +119,7 @@ describe('NavigationState', () => {
         currentCategory: 'test',
         currentModule: 'test',
         expandedCategories: new Set(['test']),
-        focusedComponent: 'tree',
+        focusedComponent: 'tree'
       };
 
       saveNavigationState(state);
@@ -126,10 +130,9 @@ describe('NavigationState', () => {
     });
   });
 
-  describe('useNavigationState hook', () => {
+  describe('useNavigationState', () => {
     it('should initialize with default state', () => {
-      const { result } = renderHook(() => useNavigationState());
-      const [state] = result.current;
+      const [state] = useNavigationState();
 
       expect(state.currentCategory).toBeNull();
       expect(state.currentModule).toBeNull();
@@ -142,13 +145,12 @@ describe('NavigationState', () => {
         currentCategory: 'workflows',
         currentModule: 'beads',
         expandedCategories: new Set(['workflows', 'examples']),
-        focusedComponent: 'version',
+        focusedComponent: 'version'
       };
 
       saveNavigationState(persistedState);
 
-      const { result } = renderHook(() => useNavigationState());
-      const [state] = result.current;
+      const [state] = useNavigationState();
 
       expect(state.currentCategory).toBe('workflows');
       expect(state.currentModule).toBe('beads');
@@ -157,105 +159,70 @@ describe('NavigationState', () => {
     });
 
     it('should update current category', () => {
-      const { result } = renderHook(() => useNavigationState());
+      const [state, actions] = useNavigationState();
 
-      act(() => {
-        const [, actions] = result.current;
-        actions.setCurrentCategory('coding-standards');
-      });
+      actions.setCurrentCategory('coding-standards');
 
-      const [state] = result.current;
       expect(state.currentCategory).toBe('coding-standards');
     });
 
     it('should update current module', () => {
-      const { result } = renderHook(() => useNavigationState());
+      const [state, actions] = useNavigationState();
 
-      act(() => {
-        const [, actions] = result.current;
-        actions.setCurrentModule('typescript');
-      });
+      actions.setCurrentModule('typescript');
 
-      const [state] = result.current;
       expect(state.currentModule).toBe('typescript');
     });
 
     it('should toggle category expansion', () => {
-      const { result } = renderHook(() => useNavigationState());
+      const [state, actions] = useNavigationState();
 
-      act(() => {
-        const [, actions] = result.current;
-        actions.toggleCategory('test-category');
-      });
+      actions.toggleCategory('test-category');
 
-      let [state] = result.current;
       expect(state.expandedCategories.has('test-category')).toBe(true);
 
-      act(() => {
-        const [, actions] = result.current;
-        actions.toggleCategory('test-category');
-      });
+      actions.toggleCategory('test-category');
 
-      [state] = result.current;
       expect(state.expandedCategories.has('test-category')).toBe(false);
     });
 
     it('should expand category', () => {
-      const { result } = renderHook(() => useNavigationState());
+      const [state, actions] = useNavigationState();
 
-      act(() => {
-        const [, actions] = result.current;
-        actions.expandCategory('category1');
-        actions.expandCategory('category2');
-      });
+      actions.expandCategory('category1');
+      actions.expandCategory('category2');
 
-      const [state] = result.current;
       expect(state.expandedCategories.has('category1')).toBe(true);
       expect(state.expandedCategories.has('category2')).toBe(true);
     });
 
     it('should collapse category', () => {
-      const { result } = renderHook(() => useNavigationState());
+      const [state, actions] = useNavigationState();
 
-      act(() => {
-        const [, actions] = result.current;
-        actions.expandCategory('category1');
-        actions.expandCategory('category2');
-      });
+      actions.expandCategory('category1');
+      actions.expandCategory('category2');
 
-      act(() => {
-        const [, actions] = result.current;
-        actions.collapseCategory('category1');
-      });
+      actions.collapseCategory('category1');
 
-      const [state] = result.current;
       expect(state.expandedCategories.has('category1')).toBe(false);
       expect(state.expandedCategories.has('category2')).toBe(true);
     });
 
     it('should set focused component', () => {
-      const { result } = renderHook(() => useNavigationState());
+      const [state, actions] = useNavigationState();
 
-      act(() => {
-        const [, actions] = result.current;
-        actions.setFocusedComponent('search');
-      });
+      actions.setFocusedComponent('search');
 
-      const [state] = result.current;
       expect(state.focusedComponent).toBe('search');
     });
 
     it('should persist state changes to localStorage', () => {
-      const { result } = renderHook(() => useNavigationState());
+      const [, actions] = useNavigationState();
 
-      act(() => {
-        const [, actions] = result.current;
-        actions.setCurrentCategory('test-category');
-        actions.setCurrentModule('test-module');
-        actions.expandCategory('expanded-cat');
-      });
+      actions.setCurrentCategory('test-category');
+      actions.setCurrentModule('test-module');
+      actions.expandCategory('expanded-cat');
 
-      // Wait for useEffect to run
       const stored = localStorageMock.getItem('augx_navigation_state');
       expect(stored).not.toBeNull();
 
@@ -266,5 +233,3 @@ describe('NavigationState', () => {
     });
   });
 });
-
-

@@ -23,6 +23,11 @@ export interface MirrorEntry {
   sourcePath: string;
   targetPath: string;
   mode: MirrorMode;
+  /**
+   * SHA-256 digest of the mirrored content at materialization time.
+   * Used to verify copy-mode targets even if the source path later disappears.
+   */
+  sourceDigest?: string;
 }
 
 export type MirrorsBlock = Record<string, MirrorEntry[]>;

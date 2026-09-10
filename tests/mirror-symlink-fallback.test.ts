@@ -53,7 +53,11 @@ vi.mock('fs', async () => {
 
 // Imports below this line resolve to the mocked module above.
 import * as fs from 'fs';
-import { materializeFile, mirrorModule } from '@cli/lib/mirror-runner';
+import {
+  materializeFile,
+  mirrorModule,
+  removeTrackedTarget,
+} from '@cli/lib/mirror-runner';
 
 function makeTempDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), `${prefix}-`));
@@ -64,6 +68,39 @@ function writeRule(root: string, rel: string, body: string): string {
   fs.mkdirSync(path.dirname(abs), { recursive: true });
   fs.writeFileSync(abs, body, 'utf-8');
   return abs;
+}
+
+function readModuleFromDisk(moduleRoot: string): ResolvedModule {
+  const rulesRoot = path.join(moduleRoot, 'rules');
+  const rels = fs.existsSync(rulesRoot) ? fs.readdirSync(rulesRoot).sort() : [];
+  return {
+    id: 'coding-standards/demo',
+    version: '1.0.0',
+    rootPath: moduleRoot,
+    rulesFiles: rels.map((rel) => ({
+      relativePath: `rules/${rel}`,
+      content: fs.readFileSync(path.join(rulesRoot, rel), 'utf-8').replace(/\r\n?/g, '\n'),
+    })),
+    examplesFiles: [],
+  };
+}
+
+function toRecordedMap(
+  entries: readonly Array<{
+    targetPath: string;
+    sourcePath: string;
+    mode: 'symlink' | 'copy';
+    sourceDigest?: string;
+  }>
+): Map<string, (typeof entries)[number]> {
+  return new Map(entries.map((e) => [e.targetPath, e]));
+}
+
+function fakeSymlinkStat(): fs.Stats {
+  return {
+    isSymbolicLink: () => true,
+    isFile: () => false,
+  } as fs.Stats;
 }
 
 function epermError(): NodeJS.ErrnoException {
@@ -185,5 +222,147 @@ describe('mirrorModule: records mode "copy" after EPERM fallback (U2)', () => {
     expect(result.entries[0].tool).toBe('claude-code');
     expect(result.entries[0].mode).toBe('copy');
     expect(result.claudeStubsAdded).toBe(true);
+  });
+});
+
+describe('removeTrackedTarget: no-follow cleanup', () => {
+  it('removes a broken symlink even when existsSync reports false', () => {
+    const sourceAbs = '/repo/source/rule.md';
+    const targetAbs = '/repo/.claude/rules/demo/rule.md';
+
+    const existsSpy = vi.spyOn(fs, 'existsSync').mockReturnValue(false);
+    const lstatSpy = vi.spyOn(fs, 'lstatSync').mockReturnValue(fakeSymlinkStat());
+    const readlinkSpy = vi.spyOn(fs, 'readlinkSync').mockReturnValue(sourceAbs);
+    const unlinkSpy = vi.spyOn(fs, 'unlinkSync').mockImplementation(() => undefined as never);
+
+    expect(removeTrackedTarget(sourceAbs, targetAbs, 'symlink')).toBe(true);
+    expect(lstatSpy).toHaveBeenCalledWith(targetAbs);
+    expect(readlinkSpy).toHaveBeenCalledWith(targetAbs);
+    expect(unlinkSpy).toHaveBeenCalledWith(targetAbs);
+
+    existsSpy.mockRestore();
+    lstatSpy.mockRestore();
+    readlinkSpy.mockRestore();
+    unlinkSpy.mockRestore();
+  });
+
+  it('removes a live symlink without following its target path', () => {
+    const sourceAbs = '/repo/source/rule.md';
+    const targetAbs = '/repo/.claude/rules/demo/rule.md';
+
+    const existsSpy = vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+    const lstatSpy = vi.spyOn(fs, 'lstatSync').mockReturnValue(fakeSymlinkStat());
+    const readlinkSpy = vi.spyOn(fs, 'readlinkSync').mockReturnValue(sourceAbs);
+    const unlinkSpy = vi.spyOn(fs, 'unlinkSync').mockImplementation(() => undefined as never);
+
+    expect(removeTrackedTarget(sourceAbs, targetAbs, 'symlink')).toBe(true);
+    expect(lstatSpy).toHaveBeenCalledWith(targetAbs);
+    expect(readlinkSpy).toHaveBeenCalledWith(targetAbs);
+    expect(unlinkSpy).toHaveBeenCalledWith(targetAbs);
+
+    existsSpy.mockRestore();
+    lstatSpy.mockRestore();
+    readlinkSpy.mockRestore();
+    unlinkSpy.mockRestore();
+  });
+});
+
+describe('mirrorModule: copy cleanup honors tracked digests', () => {
+  let tmp: string;
+
+  beforeEach(() => {
+    resetFsMocks();
+    tmp = makeTempDir('augx-copy-cleanup');
+  });
+
+  afterEach(() => {
+    resetFsMocks();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
+
+  it('prunes an untouched copied target after its source disappears', () => {
+    const moduleRoot = path.join(tmp, 'augment-extensions', 'coding-standards', 'demo');
+    writeRule(moduleRoot, 'rules/style.md', '# style rule\n');
+
+    fsMocks.symlinkThrow = () => epermError();
+
+    const firstRun = mirrorModule(readModuleFromDisk(moduleRoot), ['claude-code'], {
+      projectRoot: tmp,
+      augxVersion: '0.0.0-test',
+      ignorePatterns: [],
+      now: () => '2026-05-25T12:00:00.000Z',
+      recordedByTarget: new Map(),
+    });
+
+    expect(firstRun.entries).toHaveLength(1);
+    expect(firstRun.entries[0].mode).toBe('copy');
+    expect(firstRun.entries[0].sourceDigest).toMatch(/^[0-9a-f]{64}$/);
+
+    const targetAbs = path.join(
+      tmp,
+      '.claude',
+      'rules',
+      'coding-standards-demo',
+      'rules',
+      'style.md'
+    );
+    expect(fs.existsSync(targetAbs)).toBe(true);
+
+    fs.unlinkSync(path.join(moduleRoot, 'rules', 'style.md'));
+
+    const secondRun = mirrorModule(readModuleFromDisk(moduleRoot), ['claude-code'], {
+      projectRoot: tmp,
+      augxVersion: '0.0.0-test',
+      ignorePatterns: [],
+      now: () => '2026-05-25T12:00:00.000Z',
+      recordedByTarget: toRecordedMap(firstRun.entries),
+    });
+
+    expect(secondRun.entries).toHaveLength(0);
+    expect(fs.existsSync(targetAbs)).toBe(false);
+  });
+
+  it('keeps an edited copied target and logs the warning', () => {
+    const moduleRoot = path.join(tmp, 'augment-extensions', 'coding-standards', 'demo');
+    writeRule(moduleRoot, 'rules/style.md', '# style rule\n');
+
+    fsMocks.symlinkThrow = () => epermError();
+    const log = vi.fn();
+
+    const firstRun = mirrorModule(readModuleFromDisk(moduleRoot), ['claude-code'], {
+      projectRoot: tmp,
+      augxVersion: '0.0.0-test',
+      ignorePatterns: [],
+      now: () => '2026-05-25T12:00:00.000Z',
+      recordedByTarget: new Map(),
+    });
+
+    const targetAbs = path.join(
+      tmp,
+      '.claude',
+      'rules',
+      'coding-standards-demo',
+      'rules',
+      'style.md'
+    );
+    fs.writeFileSync(targetAbs, '# edited style rule\n', 'utf-8');
+    fs.unlinkSync(path.join(moduleRoot, 'rules', 'style.md'));
+
+    const secondRun = mirrorModule(readModuleFromDisk(moduleRoot), ['claude-code'], {
+      projectRoot: tmp,
+      augxVersion: '0.0.0-test',
+      ignorePatterns: [],
+      now: () => '2026-05-25T12:00:00.000Z',
+      verbose: true,
+      recordedByTarget: toRecordedMap(firstRun.entries),
+      log,
+    });
+
+    expect(secondRun.entries).toHaveLength(0);
+    expect(fs.existsSync(targetAbs)).toBe(true);
+    expect(fs.readFileSync(targetAbs, 'utf-8')).toBe('# edited style rule\n');
+    expect(
+      log.mock.calls.some((call) => call.join(' ').includes('kept (hand-edited)'))
+    ).toBe(true);
   });
 });

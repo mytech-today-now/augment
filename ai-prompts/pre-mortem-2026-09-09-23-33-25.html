@@ -1,0 +1,1930 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Augment Extensions Pre-Mortem Report, 2026-09-09 23:33:25</title>
+  <meta name="description" content="Repository-grounded pre-mortem for Augment Extensions generated from the current working tree.">
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5efe6;
+      --bg-accent: #e5f0eb;
+      --surface: rgba(255, 250, 243, 0.96);
+      --surface-soft: rgba(255, 255, 255, 0.7);
+      --ink: #1f2732;
+      --muted: #596473;
+      --accent: #0f766e;
+      --accent-soft: rgba(15, 118, 110, 0.1);
+      --gold: #9a6b15;
+      --gold-soft: rgba(154, 107, 21, 0.1);
+      --danger: #a83b32;
+      --danger-soft: rgba(168, 59, 50, 0.1);
+      --border: #d8ccba;
+      --shadow: 0 18px 38px rgba(30, 24, 17, 0.08);
+      --radius-xl: 22px;
+      --radius-lg: 16px;
+      --radius-md: 12px;
+      --max: 1180px;
+    }
+
+    html {
+      background:
+        radial-gradient(circle at top left, rgba(15, 118, 110, 0.08), transparent 27%),
+        radial-gradient(circle at top right, rgba(154, 107, 21, 0.08), transparent 24%),
+        linear-gradient(180deg, var(--bg), #fbfaf7 62%, #ffffff 100%);
+      color: var(--ink);
+      font-size: 16px;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Georgia, "Iowan Old Style", "Palatino Linotype", Palatino, serif;
+      line-height: 1.58;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(120deg, rgba(255, 255, 255, 0.46), transparent 22%),
+        linear-gradient(300deg, rgba(229, 240, 235, 0.42), transparent 18%);
+      z-index: -1;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration-thickness: 0.12em;
+      text-underline-offset: 0.18em;
+    }
+
+    a:hover,
+    a:focus-visible {
+      color: #0b5e58;
+    }
+
+    .page {
+      width: min(var(--max), calc(100vw - 1.5rem));
+      margin: 0 auto;
+      padding: 1.25rem 0 3rem;
+    }
+
+    .hero,
+    .panel,
+    article {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 1.6rem;
+      margin-bottom: 1.2rem;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto auto -8rem -6rem;
+      width: 18rem;
+      height: 18rem;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(15, 118, 110, 0.14), transparent 66%);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      margin: 0 0 0.35rem;
+      color: var(--accent);
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+      margin: 0;
+      line-height: 1.18;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 4vw, 3.5rem);
+      max-width: 18ch;
+    }
+
+    h2 {
+      font-size: clamp(1.35rem, 2vw, 2rem);
+      margin-bottom: 0.8rem;
+    }
+
+    h3 {
+      font-size: 1.12rem;
+    }
+
+    p {
+      margin: 0 0 0.85rem;
+    }
+
+    .lede {
+      max-width: 70ch;
+      color: var(--muted);
+      font-size: 1.06rem;
+    }
+
+    .meta-grid,
+    .stat-grid,
+    .two-col,
+    .footer-grid {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .meta-grid,
+    .stat-grid {
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      margin-top: 1.15rem;
+    }
+
+    .meta,
+    .stat,
+    .callout {
+      min-width: 0;
+      padding: 0.95rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface-soft);
+    }
+
+    .meta-label,
+    .stat-label {
+      display: block;
+      margin: 0 0 0.15rem;
+      color: var(--muted);
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .meta-value,
+    .stat-value {
+      display: block;
+      font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+
+    .panel {
+      padding: 1.35rem;
+      margin: 1.15rem 0;
+    }
+
+    .panel h2 {
+      color: var(--accent);
+    }
+
+    .callout {
+      border-left: 4px solid var(--gold);
+      background: #fff4de;
+      border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+    }
+
+    .callout strong {
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      min-width: 1020px;
+      border-collapse: collapse;
+    }
+
+    caption {
+      text-align: left;
+      color: var(--muted);
+      margin-bottom: 0.8rem;
+    }
+
+    th,
+    td {
+      padding: 0.78rem 0.85rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 0.74rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .kind,
+    .severity,
+    .likelihood,
+    .priority {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 0.18rem 0.55rem;
+      font-size: 0.75rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .kind.core {
+      background: var(--accent-soft);
+      color: #075e57;
+    }
+
+    .kind.additional {
+      background: var(--gold-soft);
+      color: #74470a;
+    }
+
+    .severity.critical,
+    .severity.high {
+      background: var(--danger-soft);
+      color: var(--danger);
+    }
+
+    .severity.medium {
+      background: var(--gold-soft);
+      color: var(--gold);
+    }
+
+    .severity.low {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .likelihood.almost-certain,
+    .likelihood.likely {
+      background: var(--danger-soft);
+      color: var(--danger);
+    }
+
+    .likelihood.possible {
+      background: var(--gold-soft);
+      color: var(--gold);
+    }
+
+    .likelihood.unlikely,
+    .likelihood.rare {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .priority.p1,
+    .priority.p2,
+    .priority.p3,
+    .priority.p4 {
+      background: var(--danger-soft);
+      color: var(--danger);
+    }
+
+    .priority.p5,
+    .priority.p6,
+    .priority.p7,
+    .priority.p8 {
+      background: var(--gold-soft);
+      color: var(--gold);
+    }
+
+    .priority.p9,
+    .priority.p10,
+    .priority.p11,
+    .priority.p12 {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .priority.p13,
+    .priority.p14,
+    .priority.p15,
+    .priority.p16 {
+      background: rgba(89, 100, 115, 0.12);
+      color: var(--muted);
+    }
+
+    .issues {
+      display: grid;
+      gap: 1rem;
+    }
+
+    article {
+      overflow: hidden;
+    }
+
+    article header {
+      padding: 1.15rem 1.35rem 0.95rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.4);
+    }
+
+    .issue-kicker {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      margin-bottom: 0.55rem;
+    }
+
+    .issue-number {
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    article h3 {
+      max-width: 72ch;
+    }
+
+    .issue-details {
+      display: grid;
+      grid-template-columns: 200px minmax(0, 1fr);
+      margin: 0;
+    }
+
+    .issue-details dt,
+    .issue-details dd {
+      margin: 0;
+      padding: 0.82rem 1.35rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .issue-details dt {
+      background: #fbf5ea;
+      color: var(--muted);
+      font-size: 0.74rem;
+      font-weight: 850;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .issue-details dd {
+      background: rgba(255, 255, 255, 0.35);
+      overflow-wrap: anywhere;
+    }
+
+    .issue-details dd:last-child,
+    .issue-details dt:nth-last-of-type(1) {
+      border-bottom: 0;
+    }
+
+    .evidence,
+    .baseline,
+    .acceptance,
+    .tests {
+      margin: 0.35rem 0 0;
+      padding-left: 1.2rem;
+    }
+
+    .evidence li,
+    .baseline li,
+    .acceptance li,
+    .tests li {
+      margin: 0.28rem 0;
+    }
+
+    code {
+      font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+      font-size: 0.9em;
+      background: #eee7da;
+      border: 1px solid #ded4c5;
+      border-radius: 4px;
+      padding: 0.06em 0.28em;
+      overflow-wrap: anywhere;
+    }
+
+    pre {
+      margin: 0.65rem 0 0;
+      padding: 0.9rem 1rem;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.7);
+    }
+
+    pre code {
+      border: 0;
+      background: transparent;
+      padding: 0;
+    }
+
+    .footer {
+      margin-top: 1.2rem;
+      padding: 1rem 0 0.5rem;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .footer-grid {
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+
+    @media (max-width: 860px) {
+      .issue-details {
+        grid-template-columns: 1fr;
+      }
+
+      .issue-details dt {
+        padding-bottom: 0.35rem;
+        border-bottom: 0;
+      }
+
+      .issue-details dd {
+        padding-top: 0.35rem;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .page {
+        width: min(calc(100vw - 1rem), var(--max));
+        padding-top: 0.6rem;
+      }
+
+      .hero,
+      .panel {
+        padding: 1rem;
+      }
+
+      article header,
+      .issue-details dt,
+      .issue-details dd {
+        padding-left: 1rem;
+        padding-right: 1rem;
+      }
+    }
+
+    @media print {
+      :root {
+        --bg: #ffffff;
+        --surface: #ffffff;
+        --surface-soft: #ffffff;
+        --ink: #000000;
+        --muted: #333333;
+        --border: #aaaaaa;
+      }
+
+      html,
+      body {
+        background: #ffffff;
+      }
+
+      body::before {
+        display: none;
+      }
+
+      .page {
+        width: 100%;
+        padding: 0;
+      }
+
+      .hero,
+      .panel,
+      article {
+        box-shadow: none;
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .table-wrap {
+        overflow: visible;
+      }
+
+      table {
+        min-width: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <div class="eyebrow">Repository review, pre-mortem</div>
+      <h1>How Augment Extensions could fail on the next release</h1>
+      <p class="lede">This report inspects the current working tree of Augment Extensions and forecasts the most likely ways the CLI, generated file workflows, MCP integration, skill execution, and repository tests could fail for real users before those failures turn into release regressions.</p>
+
+      <div class="meta-grid" aria-label="Repository metadata">
+        <div class="meta">
+          <span class="meta-label">Repository</span>
+          <span class="meta-value">mytech-today-now/augment-extensions</span>
+        </div>
+        <div class="meta">
+          <span class="meta-label">Working tree</span>
+          <span class="meta-value">C:\GitHub\augx\augment-extensions</span>
+        </div>
+        <div class="meta">
+          <span class="meta-label">Branch</span>
+          <span class="meta-value">codex/catalog-hook-layout-fix</span>
+        </div>
+        <div class="meta">
+          <span class="meta-label">Version</span>
+          <span class="meta-value">3.1.3</span>
+        </div>
+        <div class="meta">
+          <span class="meta-label">Generated</span>
+          <span class="meta-value">2026-09-09 23:33:25 America/Chicago</span>
+        </div>
+        <div class="meta">
+          <span class="meta-label">Output path</span>
+          <span class="meta-value">./ai-prompts/pre-mortem-2026-09-09-23-33-25.html</span>
+        </div>
+      </div>
+
+      <div class="stat-grid" aria-label="Validation snapshot">
+        <div class="stat">
+          <span class="stat-label">Core findings</span>
+          <span class="stat-value">10</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Additional findings</span>
+          <span class="stat-value">6</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Observed validation</span>
+          <span class="stat-value">Lint and build passed, targeted smoke checks exposed current failures</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Direct repros</span>
+          <span class="stat-value">Source execution, submodule path resolution, skill cycle overflow</span>
+        </div>
+      </div>
+    </header>
+
+    <section class="panel" id="executive-summary" aria-labelledby="executive-summary-heading">
+      <h2 id="executive-summary-heading">Executive Summary</h2>
+      <div class="two-col">
+        <div>
+          <p>The cleanest quality gates are not the problem here. <code>npm run lint</code> and <code>npm run build</code> passed, and the direct source CLI smoke path, <code>npx tsx cli/src/cli.ts --help</code>, also passed. The highest risk cluster is concentrated where the repo executes external commands, writes generated files, and tries to resolve documented submodule paths that the current resolver cannot actually find.</p>
+          <p>The most urgent risks are security and operational ones: shell-based skill execution, path traversal in MCP skill wrapper generation, unbounded MCP child processes, and stack overflow on cyclic skill dependencies. Those are the failures most likely to turn a routine local workflow into arbitrary command execution, secret leakage, or a frozen CLI turn.</p>
+          <p>A second cluster is contract drift. Two module READMEs promise selective loading paths that the CLI rejects with <code>Module not found</code>, and several test files are stale enough to fail for fixture or harness reasons instead of product behavior. That kind of drift is dangerous because it teaches the team to ignore red tests.</p>
+        </div>
+        <aside class="callout">
+          <strong>Release posture:</strong>
+          <p>Do not read a green lint and build as proof that the repo is safe. The current evidence says the execution boundary, generated output boundary, and test contract boundary each still have sharp edges that can fail under normal use.</p>
+        </aside>
+      </div>
+    </section>
+
+    <section class="panel" id="scope-method" aria-labelledby="scope-method-heading">
+      <h2 id="scope-method-heading">Scope and Method</h2>
+      <div class="two-col">
+        <div>
+          <p>The review used the current working tree at <code>C:\GitHub\augx\augment-extensions</code> on branch <code>codex/catalog-hook-layout-fix</code>. I read the root <code>AGENTS.md</code>, the nested <code>cli/AGENTS.md</code>, the package manifest, the top-level README, the current CLI source, the generated module and workflow docs, and the current test suites that exercise CLI, module, MCP, and skill behavior.</p>
+          <ul>
+            <li>Reused the visual language from <code>ai-prompts/pre-mortem-2026-09-09-15-15-24.html</code> so the new report matches the repo's existing audit style.</li>
+            <li>Ran <code>npm run lint</code> and <code>npm run build</code>, both of which passed.</li>
+            <li>Ran <code>npx tsx cli/src/cli.ts --help</code>, which passed.</li>
+            <li>Ran <code>npx tsx cli/src/cli.ts show software-architecture/fundamentals</code> and <code>npx tsx cli/src/cli.ts show visual-design/google-modern</code>, both of which returned <code>Module not found</code>.</li>
+            <li>Ran <code>npx vitest run tests/integration/cli/source-execution.test.ts --reporter verbose</code>, <code>npx vitest run tests/unit/modules/submodule-discovery.test.ts --reporter verbose</code>, and a direct cyclic skill-load reproduction that ended in <code>RangeError: Maximum call stack size exceeded</code>.</li>
+          </ul>
+        </div>
+        <div>
+          <p>The working tree was already dirty with unrelated unstaged edits and one untracked test file. I did not revert or overwrite any of those changes. Findings were grounded in read-only inspection, targeted command results, and the current test outputs rather than in assumptions about a pristine baseline.</p>
+          <p>Where a finding depends on future input or a temporary fixture to prove the edge case, I label it as <strong>Testable assumption</strong> and include a concrete confirmation path so another agent can verify or disprove it quickly.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="input-resolution" aria-labelledby="input-resolution-heading">
+      <h2 id="input-resolution-heading">Input-Resolution Note</h2>
+      <p>The source request referred to 10 mandatory issues but did not enumerate them. I treated that inconsistency as an explicit, testable assumption, selected the 10 highest-priority core issues by repository evidence, and added 6 distinct supporting issues that either expose current test drift or sharpen the same failure boundaries from a different angle. No separate issue was created for the placeholder itself.</p>
+    </section>
+
+    <section class="panel" id="risk-register" aria-labelledby="risk-register-heading">
+      <h2 id="risk-register-heading">Prioritized Risk Table</h2>
+      <div class="table-wrap">
+        <table>
+          <caption>Sixteen repository-grounded failure modes, ordered to match the article sequence below.</caption>
+          <thead>
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col">Kind</th>
+              <th scope="col">Title</th>
+              <th scope="col">Priority</th>
+              <th scope="col">Severity</th>
+              <th scope="col">Likelihood</th>
+              <th scope="col">Impacted area</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>01</td>
+              <td><span class="kind core">Core</span></td>
+              <td>Skill execution lets metadata run arbitrary shell commands</td>
+              <td><span class="priority p1">P1</span></td>
+              <td><span class="severity critical">Critical</span></td>
+              <td><span class="likelihood possible">Possible</span></td>
+              <td>Skill execution boundary and repository metadata trust</td>
+            </tr>
+            <tr>
+              <td>02</td>
+              <td><span class="kind core">Core</span></td>
+              <td>MCP wrapper generation can escape the skills directory</td>
+              <td><span class="priority p2">P2</span></td>
+              <td><span class="severity critical">Critical</span></td>
+              <td><span class="likelihood possible">Possible</span></td>
+              <td>Generated wrapper paths and MCP skill creation</td>
+            </tr>
+            <tr>
+              <td>03</td>
+              <td><span class="kind core">Core</span></td>
+              <td>MCP child processes can hang forever or buffer unbounded output</td>
+              <td><span class="priority p3">P3</span></td>
+              <td><span class="severity high">High</span></td>
+              <td><span class="likelihood likely">Likely</span></td>
+              <td>MCP command execution and CLI responsiveness</td>
+            </tr>
+            <tr>
+              <td>04</td>
+              <td><span class="kind core">Core</span></td>
+              <td>Cyclic skill dependencies crash the loader with stack overflow</td>
+              <td><span class="priority p4">P4</span></td>
+              <td><span class="severity high">High</span></td>
+              <td><span class="likelihood possible">Possible</span></td>
+              <td>Skill loading, dependency resolution, and cache integrity</td>
+            </tr>
+            <tr>
+              <td>05</td>
+              <td><span class="kind core">Core</span></td>
+              <td>MCP list JSON can expose configured environment secrets</td>
+              <td><span class="priority p5">P5</span></td>
+              <td><span class="severity high">High</span></td>
+              <td><span class="likelihood possible">Possible</span></td>
+              <td>MCP configuration diagnostics and secret handling</td>
+            </tr>
+            <tr>
+              <td>06</td>
+              <td><span class="kind core">Core</span></td>
+              <td>MCP execution logs and responses can leak sensitive payloads</td>
+              <td><span class="priority p6">P6</span></td>
+              <td><span class="severity high">High</span></td>
+              <td><span class="likelihood possible">Possible</span></td>
+              <td>MCP tool execution output and terminal logs</td>
+            </tr>
+            <tr>
+              <td>07</td>
+              <td><span class="kind core">Core</span></td>
+              <td>Documented submodule paths do not resolve in the CLI</td>
+              <td><span class="priority p7">P7</span></td>
+              <td><span class="severity high">High</span></td>
+              <td><span class="likelihood likely">Likely</span></td>
+              <td>Module lookup, <code>show</code>, and documented selective loading</td>
+            </tr>
+            <tr>
+              <td>08</td>
+              <td><span class="kind core">Core</span></td>
+              <td>Self-remove can leave partial cleanup with no rollback</td>
+              <td><span class="priority p8">P8</span></td>
+              <td><span class="severity high">High</span></td>
+              <td><span class="likelihood possible">Possible</span></td>
+              <td><code>.augment/extensions.json</code>, <code>.vscode/extensions.json</code>, and cleanup logs</td>
+            </tr>
+            <tr>
+              <td>09</td>
+              <td><span class="kind core">Core</span></td>
+              <td>Upgrade can report success even when config writes fail</td>
+              <td><span class="priority p9">P9</span></td>
+              <td><span class="severity medium">Medium</span></td>
+              <td><span class="likelihood likely">Likely</span></td>
+              <td>Upgrade flow and linked-module metadata</td>
+            </tr>
+            <tr>
+              <td>10</td>
+              <td><span class="kind core">Core</span></td>
+              <td>MCP add splits arguments on spaces and breaks quoted flags</td>
+              <td><span class="priority p10">P10</span></td>
+              <td><span class="severity medium">Medium</span></td>
+              <td><span class="likelihood likely">Likely</span></td>
+              <td>MCP server configuration parsing and launch arguments</td>
+            </tr>
+            <tr>
+              <td>11</td>
+              <td><span class="kind additional">Additional</span></td>
+              <td>Submodule discovery tests target a missing screenplay fixture tree</td>
+              <td><span class="priority p11">P11</span></td>
+              <td><span class="severity medium">Medium</span></td>
+              <td><span class="likelihood almost-certain">Almost certain</span></td>
+              <td><code>tests/unit/modules/submodule-discovery.test.ts</code> and fixture maintenance</td>
+            </tr>
+            <tr>
+              <td>12</td>
+              <td><span class="kind additional">Additional</span></td>
+              <td>The source-execution smoke test is Windows-flaky</td>
+              <td><span class="priority p12">P12</span></td>
+              <td><span class="severity medium">Medium</span></td>
+              <td><span class="likelihood likely">Likely</span></td>
+              <td><code>tests/integration/cli/source-execution.test.ts</code> and CLI smoke coverage</td>
+            </tr>
+            <tr>
+              <td>13</td>
+              <td><span class="kind additional">Additional</span></td>
+              <td>Collection-delete concurrency is flaky under the full suite</td>
+              <td><span class="priority p13">P13</span></td>
+              <td><span class="severity medium">Medium</span></td>
+              <td><span class="likelihood possible">Possible</span></td>
+              <td><code>tests/unit/collections/delete.test.ts</code> and suite determinism</td>
+            </tr>
+            <tr>
+              <td>14</td>
+              <td><span class="kind additional">Additional</span></td>
+              <td>Init tells users to run a non-existent <code>augx extract-help</code> command</td>
+              <td><span class="priority p14">P14</span></td>
+              <td><span class="severity medium">Medium</span></td>
+              <td><span class="likelihood likely">Likely</span></td>
+              <td><code>cli/src/commands/init.ts</code> recovery copy and command discoverability</td>
+            </tr>
+            <tr>
+              <td>15</td>
+              <td><span class="kind additional">Additional</span></td>
+              <td>GUI hides <code>writing-standards</code> modules instead of surfacing them</td>
+              <td><span class="priority p15">P15</span></td>
+              <td><span class="severity medium">Medium</span></td>
+              <td><span class="likelihood possible">Possible</span></td>
+              <td><code>cli/src/commands/gui.ts</code> and module-management coverage</td>
+            </tr>
+            <tr>
+              <td>16</td>
+              <td><span class="kind additional">Additional</span></td>
+              <td>Catalog hook install and removal are string-matched and brittle</td>
+              <td><span class="priority p16">P16</span></td>
+              <td><span class="severity low">Low</span></td>
+              <td><span class="likelihood possible">Possible</span></td>
+              <td><code>cli/src/utils/catalog-sync.ts</code> hook management</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="issues" aria-label="Detailed issue articles">
+      <article id="issue-01" class="issue issue-01" data-issue-kind="core" data-issue-number="1">
+        <header>
+          <div class="issue-kicker">
+            <span class="issue-number">Issue 01</span>
+            <span class="kind core">Core</span>
+            <span class="priority p1">P1</span>
+          </div>
+          <h3>Skill execution lets metadata run arbitrary shell commands</h3>
+        </header>
+        <dl class="issue-details">
+          <dt>Title</dt>
+          <dd>Skill execution lets metadata run arbitrary shell commands</dd>
+          <dt>Kind</dt>
+          <dd><span class="kind core">Core</span> Security boundary</dd>
+          <dt>Priority</dt>
+          <dd><span class="priority p1">P1</span></dd>
+          <dt>Severity</dt>
+          <dd>Critical. The current command path changes repository metadata into shell interpretation, which makes a crafted skill command capable of arbitrary command execution.</dd>
+          <dt>Likelihood</dt>
+          <dd>Possible. The path is already live, and any skill metadata that includes shell metacharacters or a malicious command string can reach it.</dd>
+          <dt>Impacted area</dt>
+          <dd><code>cli/src/commands/skill.ts:219-228</code>, <code>cli/src/utils/skill-system.ts:230-279</code>, skill fixtures, and the <code>skill exec</code> command.</dd>
+          <dt>Failure mode</dt>
+          <dd>Skill execution prints the configured command, splits it on spaces, and spawns it with <code>shell: true</code>. That means the repository can accidentally or intentionally turn a metadata field into shell syntax instead of a fixed executable plus argv.</dd>
+          <dt>Evidence or rationale</dt>
+          <dd>
+            <ul class="evidence">
+              <li><code>cli/src/commands/skill.ts:219-228</code> logs <code>skill.metadata.cliCommand</code> and spawns it with <code>shell: true</code>.</li>
+              <li><code>cli/src/utils/skill-system.ts:230-279</code> loads skill metadata from repository content, so the trust boundary is local files, not hardcoded allowlists.</li>
+              <li><code>tests/unit/utils/skill-system.test.ts</code> does not cover shell metacharacters or a malicious CLI command fixture.</li>
+            </ul>
+          </dd>
+          <dt>Why this matters</dt>
+          <dd>A skill fixture or generated skill can quietly become code execution. That is the fastest path in this repository from content management into a security incident, because the user thinks they are running a skill, not a shell script.</dd>
+          <dt>Recommended mitigation</dt>
+          <dd>Switch skill execution to a shell-free spawn path that treats the command as an executable plus argv, or reject shell syntax outright unless the user explicitly opts into a legacy shell mode. Keep the existing stdout and stderr streaming behavior, and preserve the current skill lookup flow.</dd>
+          <dt>Implementation prompt</dt>
+          <dd>
+            Resolve the project root yourself. Inspect <code>cli/src/commands/skill.ts</code>, <code>cli/src/utils/skill-system.ts</code>, the skill fixtures, and <code>tests/unit/utils/skill-system.test.ts</code> first. Change the execution path so skill metadata is validated and run without shell interpretation by default, but keep the current skill discovery, display, and output streaming behavior unchanged. Avoid a broad refactor of the skill model or any new dependency.
+            If the command is malformed or the executable is missing, fail with a clear message that names the skill id and the command string. If an unexpected child-process error occurs, exit nonzero without leaving the session hanging. Preserve user-entered arguments exactly, do not mutate the skill files, and keep a readable fallback explanation in the command output when execution is unavailable.
+            Add tests that prove metacharacters are passed literally, that a missing executable fails cleanly, and that a normal command still streams output. Run the targeted skill tests, <code>npm run lint</code>, and <code>npm run build</code>. If rollback is needed, revert the spawn path and the tests together. Final report requirements: changed files, commands run, assertions that passed, remaining risk, and any testable assumptions.
+          </dd>
+          <dt>Regression tests</dt>
+          <dd>
+            <ul class="tests">
+              <li>Fixture: a skill command containing <code>&amp;&amp;</code>, <code>|</code>, and quoted arguments. Action: run <code>augx skill exec</code>. Expectation: the metacharacters are treated as literal argv, not shell operators.</li>
+              <li>Fixture: a missing executable. Action: run the same command. Expectation: a clear nonzero exit and a message that names the skill and the missing command.</li>
+            </ul>
+          </dd>
+          <dt>Additional baseline tests</dt>
+          <dd>
+            <ul class="baseline">
+              <li><code>npm run lint</code></li>
+              <li><code>npm run build</code></li>
+              <li><code>npm run test:vitest -- tests/unit/utils/skill-system.test.ts</code></li>
+            </ul>
+          </dd>
+          <dt>Acceptance criteria</dt>
+          <dd>
+            <ul class="acceptance">
+              <li>Default skill execution does not invoke a shell.</li>
+              <li>Metacharacters are passed as data, not operators.</li>
+              <li>Missing commands fail clearly and leave no hanging child process.</li>
+            </ul>
+          </dd>
+          <dt>Confidence</dt>
+          <dd>High. The shell invocation is explicit in the source and the risk is straightforward to validate.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-02" class="issue issue-02" data-issue-kind="core" data-issue-number="2">
+        <header>
+          <div class="issue-kicker">
+            <span class="issue-number">Issue 02</span>
+            <span class="kind core">Core</span>
+            <span class="priority p2">P2</span>
+          </div>
+          <h3>MCP wrapper generation can escape the skills directory</h3>
+        </header>
+        <dl class="issue-details">
+          <dt>Title</dt>
+          <dd>MCP wrapper generation can escape the skills directory</dd>
+          <dt>Kind</dt>
+          <dd><span class="kind core">Core</span> Generated-file path safety</dd>
+          <dt>Priority</dt>
+          <dd><span class="priority p2">P2</span></dd>
+          <dt>Severity</dt>
+          <dd>Critical. A crafted category or skill id can turn a wrapper-generation command into an arbitrary write inside, and potentially outside, the intended skills tree.</dd>
+          <dt>Likelihood</dt>
+          <dd>Possible. The command already accepts raw user input for the wrapper path, and there is no containment check on the generated output.</dd>
+          <dt>Impacted area</dt>
+          <dd><code>cli/src/commands/mcp.ts:162-170</code>, <code>cli/src/utils/mcp-integration.ts:225-286</code>, and generated files under <code>skills/&lt;category&gt;/</code>.</dd>
+          <dt>Failure mode</dt>
+          <dd><code>mcpWrapCommand</code> writes the wrapper to <code>skills/&lt;category&gt;/&lt;skillId&gt;.md</code> using <code>path.join</code> and does not normalize either path segment. A crafted input such as <code>../</code> can escape the intended directory layout and write an unexpected file.</dd>
+          <dt>Evidence or rationale</dt>
+          <dd>
+            <ul class="evidence">
+              <li><code>cli/src/commands/mcp.ts:162-170</code> computes the output path from <code>category</code> and <code>skillId</code> and writes it directly.</li>
+              <li><code>cli/src/utils/mcp-integration.ts:225-286</code> renders the skill front matter from the same raw values.</li>
+              <li>There is no containment or slug validation in either code path.</li>
+            </ul>
+          </dd>
+          <dt>Why this matters</dt>
+          <dd>Wrapper generation is supposed to be a safe convenience feature. If it can write outside the skills tree, an apparently harmless command can overwrite another file, create a misleading wrapper in the wrong place, or poison a later tool run.</dd>
+          <dt>Recommended mitigation</dt>
+          <dd>Normalize the category and skill id to a safe slug, or reject unsafe segments before the file path is composed. Keep the wrapper markdown format and the current success path unchanged for valid names, but fail early and visibly if the output path would leave <code>skills/</code>.</dd>
+          <dt>Implementation prompt</dt>
+          <dd>
+            Resolve the project root yourself. Inspect <code>cli/src/commands/mcp.ts</code>, <code>cli/src/utils/mcp-integration.ts</code>, and the current skill wrapper generation flow first. Change the wrapper path logic so a skill id and category are either normalized into safe slugs or rejected when they would escape the intended <code>skills/&lt;category&gt;</code> directory. Keep the wrapper content format unchanged for valid inputs, and do not add a new path library or rewrite the MCP wrapper flow.
+            If an input is unsafe, fail with a clear error, do not write any file, and keep the user's current working state unchanged. Add tests that prove traversal segments, empty segments, and whitespace do not escape the intended directory, and that a normal wrapper still lands where expected. Run the targeted MCP wrapper tests plus <code>npm run lint</code>. If rollback is needed, remove only the helper and test additions. Final report requirements: changed files, commands run, assertions that passed, residual risk, and any testable assumptions.
+          </dd>
+          <dt>Regression tests</dt>
+          <dd>
+            <ul class="tests">
+              <li>Fixture: <code>skillId = ../../escape</code>. Action: run wrapper generation. Expectation: the command rejects the input and writes nothing.</li>
+              <li>Fixture: a valid category and skill id. Action: generate the wrapper. Expectation: the file lands under <code>skills/&lt;category&gt;/&lt;skillId&gt;.md</code>.</li>
+            </ul>
+          </dd>
+          <dt>Additional baseline tests</dt>
+          <dd>
+            <ul class="baseline">
+              <li><code>npm run lint</code></li>
+              <li><code>npm run test:vitest -- cli/src/utils/__tests__/mcp-integration.test.ts</code></li>
+            </ul>
+          </dd>
+          <dt>Acceptance criteria</dt>
+          <dd>
+            <ul class="acceptance">
+              <li>Unsafe wrapper names are rejected before any file write occurs.</li>
+              <li>Valid wrapper names still generate the same markdown content.</li>
+              <li>No wrapper generation command can escape the intended skills tree.</li>
+            </ul>
+          </dd>
+          <dt>Confidence</dt>
+          <dd>High. The path composition is explicit and the containment gap is visible in the source.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-03" class="issue issue-03" data-issue-kind="core" data-issue-number="3">
+        <header>
+          <div class="issue-kicker">
+            <span class="issue-number">Issue 03</span>
+            <span class="kind core">Core</span>
+            <span class="priority p3">P3</span>
+          </div>
+          <h3>MCP child processes can hang forever or buffer unbounded output</h3>
+        </header>
+        <dl class="issue-details">
+          <dt>Title</dt>
+          <dd>MCP child processes can hang forever or buffer unbounded output</dd>
+          <dt>Kind</dt>
+          <dd><span class="kind core">Core</span> Availability boundary</dd>
+          <dt>Priority</dt>
+          <dd><span class="priority p3">P3</span></dd>
+          <dt>Severity</dt>
+          <dd>High. A slow or noisy MCP server can stall the CLI, exhaust memory, or make the agent look frozen while it waits on an external process.</dd>
+          <dt>Likelihood</dt>
+          <dd>Likely. The current helpers wait for the child to exit and keep appending stdout and stderr without a deadline or buffer budget.</dd>
+          <dt>Impacted area</dt>
+          <dd><code>cli/src/utils/mcp-integration.ts:125-211</code>, <code>cli/src/utils/mcp-integration.ts:294-387</code>, and the <code>mcp exec</code> and <code>mcp discover</code> commands.</dd>
+          <dt>Failure mode</dt>
+          <dd>The MCP helpers spawn a child process, collect output into strings, and resolve only when the child exits. There is no timeout, kill escalation, or truncation policy, so a server that stalls or emits a large stream can block the command indefinitely.</dd>
+          <dt>Evidence or rationale</dt>
+          <dd>
+            <ul class="evidence">
+              <li><code>executeMCPCommand</code> and <code>discoverMCPTools</code> both use <code>spawn</code> with pipe-based stdout and stderr accumulation.</li>
+              <li>The code does not set a timeout, max buffer, or abort controller.</li>
+              <li>Current MCP tests cover success and exit-code failures, but not long-running or high-volume output.</li>
+            </ul>
+          </dd>
+          <dt>Why this matters</dt>
+          <dd>An agent turn can be lost to a hung server, and a noisy server can convert a routine diagnostic command into a denial of service. That risk is especially bad here because the CLI invites the user to treat MCP servers as an ordinary local workflow tool.</dd>
+          <dt>Recommended mitigation</dt>
+          <dd>Add a configurable timeout, output cap, and kill escalation to both helper paths. Preserve exit code and stderr details, but truncate or summarize unbounded output and fail fast when the process does not settle in time.</dd>
+          <dt>Implementation prompt</dt>
+          <dd>
+            Resolve the project root yourself. Inspect <code>cli/src/utils/mcp-integration.ts</code>, <code>cli/src/commands/mcp.ts</code>, and the current MCP tests first. Add a small lifecycle wrapper that enforces a deadline, caps output, and kills the child process if it does not finish cleanly. Keep the stdio JSON-RPC contract, normal success paths, and current server configuration behavior unchanged.
+            If a server times out, returns malformed output, or exits with a nonzero code, surface a readable error that names the server and tool without hanging the CLI. Preserve any existing fallback behavior for unsupported transports. Add tests that cover a slow server, a noisy server, normal JSON-RPC output, and a clean termination path. Run the MCP tests, <code>npm run lint</code>, and <code>npm run build</code>. Final report requirements: changed files, commands run, assertions that passed, residual risk, and any testable assumptions.
+          </dd>
+          <dt>Regression tests</dt>
+          <dd>
+            <ul class="tests">
+              <li>Fixture: a server that sleeps past the deadline. Action: run <code>mcp exec</code> or <code>mcp discover</code>. Expectation: the helper times out, terminates the child, and reports a readable error.</li>
+              <li>Fixture: a server that emits more than the output cap. Action: run the same path. Expectation: output is truncated and the CLI still exits deterministically.</li>
+            </ul>
+          </dd>
+          <dt>Additional baseline tests</dt>
+          <dd>
+            <ul class="baseline">
+              <li><code>npm run lint</code></li>
+              <li><code>npm run build</code></li>
+              <li><code>npm run test:vitest -- cli/src/utils/__tests__/mcp-integration.test.ts</code></li>
+            </ul>
+          </dd>
+          <dt>Acceptance criteria</dt>
+          <dd>
+            <ul class="acceptance">
+              <li>No MCP command waits forever.</li>
+              <li>Long output is bounded and clearly truncated.</li>
+              <li>Normal JSON-RPC success and nonzero exit diagnostics still work.</li>
+            </ul>
+          </dd>
+          <dt>Confidence</dt>
+          <dd>High. The missing controls are obvious in the helper implementation and easy to verify with a fake server.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-04" class="issue issue-04" data-issue-kind="core" data-issue-number="4">
+        <header>
+          <div class="issue-kicker">
+            <span class="issue-number">Issue 04</span>
+            <span class="kind core">Core</span>
+            <span class="priority p4">P4</span>
+          </div>
+          <h3>Cyclic skill dependencies crash the loader with stack overflow</h3>
+        </header>
+        <dl class="issue-details">
+          <dt>Title</dt>
+          <dd>Cyclic skill dependencies crash the loader with stack overflow</dd>
+          <dt>Kind</dt>
+          <dd><span class="kind core">Core</span> Reliability boundary</dd>
+          <dt>Priority</dt>
+          <dd><span class="priority p4">P4</span></dd>
+          <dt>Severity</dt>
+          <dd>High. A two-node skill cycle is enough to overflow the stack, which turns a content problem into a hard crash.</dd>
+          <dt>Likelihood</dt>
+          <dd>Possible. The loader recurses through dependency ids and does not keep a visited set.</dd>
+          <dt>Impacted area</dt>
+          <dd><code>cli/src/utils/skill-system.ts:230-279</code>, the skill cache, and any command that loads dependencies dynamically.</dd>
+          <dt>Failure mode</dt>
+          <dd><code>loadSkillDynamic</code> recursively calls itself for every dependency, but it does not track the nodes already in the current traversal. A cycle such as <code>a -&gt; b -&gt; a</code> causes unbounded recursion and a stack overflow.</dd>
+          <dt>Evidence or rationale</dt>
+          <dd>
+            <ul class="evidence">
+              <li><code>cli/src/utils/skill-system.ts:230-279</code> recurses without a visited set or cycle guard.</li>
+              <li>A direct reproduction using two temp skill files with circular dependencies produced <code>RangeError: Maximum call stack size exceeded</code>.</li>
+              <li><code>tests/unit/utils/skill-system.test.ts</code> covers caching and happy-path loading, but not cycle detection.</li>
+            </ul>
+          </dd>
+          <dt>Why this matters</dt>
+          <dd>Skill dependency graphs are content, not code, and content errors happen. A loader that crashes instead of reporting the cycle makes the agent lose the entire turn and gives the author no actionable recovery path.</dd>
+          <dt>Recommended mitigation</dt>
+          <dd>Add cycle detection and return a structured error or warning that names the dependency loop. Keep acyclic loading, dependency flattening, and the existing token budget checks unchanged.</dd>
+          <dt>Implementation prompt</dt>
+          <dd>
+            Resolve the project root yourself. Inspect <code>cli/src/utils/skill-system.ts</code>, the current skill fixtures, and <code>tests/unit/utils/skill-system.test.ts</code> first. Add a traversal guard or visited set so dependency loading can report a cycle instead of recursing forever. Preserve the current cache behavior, the token budget checks, and the output format for acyclic skills.
+            If a cycle is detected, fail with a clear error that names the loop and keep the surrounding skill content untouched. Do not introduce a broad graph library or a new dependency model. Add tests for a self-cycle, a two-node cycle, and a normal acyclic tree. Run the skill-system tests, <code>npm run lint</code>, and <code>npm run build</code>. Final report requirements: changed files, commands run, assertions that passed, residual risk, and any testable assumptions.
+          </dd>
+          <dt>Regression tests</dt>
+          <dd>
+            <ul class="tests">
+              <li>Fixture: <code>a -&gt; b -&gt; a</code>. Action: call <code>loadSkillDynamic</code>. Expectation: the loader reports the cycle and does not recurse forever.</li>
+              <li>Fixture: an acyclic dependency tree. Action: load it. Expectation: the flattened content and token totals remain unchanged.</li>
+            </ul>
+          </dd>
+          <dt>Additional baseline tests</dt>
+          <dd>
+            <ul class="baseline">
+              <li><code>npm run lint</code></li>
+              <li><code>npm run build</code></li>
+              <li><code>npm run test:vitest -- tests/unit/utils/skill-system.test.ts</code></li>
+            </ul>
+          </dd>
+          <dt>Acceptance criteria</dt>
+          <dd>
+            <ul class="acceptance">
+              <li>Cycles are reported as data, not as a crash.</li>
+              <li>Acyclic dependency loading still works and still uses the cache.</li>
+              <li>The command exits deterministically instead of overflowing the stack.</li>
+            </ul>
+          </dd>
+          <dt>Confidence</dt>
+          <dd>High. The recursion path is visible, and a direct temp-file reproduction already hit the stack limit.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-05" class="issue issue-05" data-issue-kind="core" data-issue-number="5">
+        <header>
+          <div class="issue-kicker">
+            <span class="issue-number">Issue 05</span>
+            <span class="kind core">Core</span>
+            <span class="priority p5">P5</span>
+          </div>
+          <h3>MCP list JSON can expose configured environment secrets</h3>
+        </header>
+        <dl class="issue-details">
+          <dt>Title</dt>
+          <dd>MCP list JSON can expose configured environment secrets</dd>
+          <dt>Kind</dt>
+          <dd><span class="kind core">Core</span> Secret handling</dd>
+          <dt>Priority</dt>
+          <dd><span class="priority p5">P5</span></dd>
+          <dt>Severity</dt>
+          <dd>High. The JSON listing prints the entire loaded configuration object, and that object includes the environment map that may carry tokens or credentials.</dd>
+          <dt>Likelihood</dt>
+          <dd>Possible. The current command already has a JSON mode, and the config shape already stores <code>env</code> alongside the server definition.</dd>
+          <dt>Impacted area</dt>
+          <dd><code>cli/src/commands/mcp.ts:31-40</code>, <code>cli/src/utils/mcp-integration.ts:23-72</code>, and the <code>.augment/mcp/servers.json</code> config surface.</dd>
+          <dt>Failure mode</dt>
+          <dd><code>mcpListCommand</code> serializes the loaded config objects directly. Because the stored config shape includes <code>env</code>, any secret or token kept there is printed to stdout in plain text when a user asks for JSON output.</dd>
+          <dt>Evidence or rationale</dt>
+          <dd>
+            <ul class="evidence">
+              <li><code>cli/src/commands/mcp.ts:31-40</code> uses <code>JSON.stringify(configs, null, 2)</code> without redaction.</li>
+              <li><code>cli/src/utils/mcp-integration.ts:23-25</code> defines <code>env</code> on the stored server config.</li>
+              <li><code>cli/src/utils/mcp-integration.ts:49-72</code> loads and saves that config shape without filtering sensitive fields.</li>
+            </ul>
+          </dd>
+          <dt>Why this matters</dt>
+          <dd>Secrets should never appear in generic diagnostics. This is a straight secret-exposure path for anyone who stores tokens, credentials, or private URLs in the MCP config, and it is especially risky because JSON output is easy to redirect into logs or tickets.</dd>
+          <dt>Recommended mitigation</dt>
+          <dd>Redact known sensitive fields by default, or omit <code>env</code> from the listing unless the user explicitly asks for a secure or verbose diagnostic mode. Preserve the ability to inspect server names, commands, and transports.</dd>
+          <dt>Implementation prompt</dt>
+          <dd>
+            Resolve the project root yourself. Inspect <code>cli/src/commands/mcp.ts</code>, <code>cli/src/utils/mcp-integration.ts</code>, and the MCP command tests first. Change the JSON listing so it does not print raw <code>env</code> values by default. Keep the visible server inventory useful by preserving names, commands, transports, and non-sensitive metadata.
+            If a user needs a fuller diagnostic, add an explicit secure or verbose mode instead of leaking secrets silently. Preserve the existing config file format, and do not change how servers are stored. Add tests that prove a secret key is redacted in JSON mode and still present only in the on-disk config. Run the MCP command tests, <code>npm run lint</code>, and <code>npm run build</code>. Final report requirements: changed files, commands run, assertions that passed, residual risk, and any testable assumptions.
+          </dd>
+          <dt>Regression tests</dt>
+          <dd>
+            <ul class="tests">
+              <li>Fixture: a server config with <code>env.SECRET_TOKEN</code>. Action: run <code>augx mcp list --json</code>. Expectation: the secret is redacted or omitted.</li>
+              <li>Fixture: the same config on disk. Action: inspect the file directly. Expectation: the original value is still stored only in the config file, not echoed by the CLI.</li>
+            </ul>
+          </dd>
+          <dt>Additional baseline tests</dt>
+          <dd>
+            <ul class="baseline">
+              <li><code>npm run lint</code></li>
+              <li><code>npm run build</code></li>
+              <li><code>npm run test:vitest -- cli/src/commands/__tests__/mcp.test.ts</code></li>
+            </ul>
+          </dd>
+          <dt>Acceptance criteria</dt>
+          <dd>
+            <ul class="acceptance">
+              <li>Default JSON listing does not expose environment secrets.</li>
+              <li>Server names, commands, and transports are still visible.</li>
+              <li>Users can still opt into deeper diagnostics without leaking data by accident.</li>
+            </ul>
+          </dd>
+          <dt>Confidence</dt>
+          <dd>High. The config shape and the JSON serialization are explicit in the code.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-06" class="issue issue-06" data-issue-kind="core" data-issue-number="6">
+        <header>
+          <div class="issue-kicker">
+            <span class="issue-number">Issue 06</span>
+            <span class="kind core">Core</span>
+            <span class="priority p6">P6</span>
+          </div>
+          <h3>MCP execution logs and responses can leak sensitive payloads</h3>
+        </header>
+        <dl class="issue-details">
+          <dt>Title</dt>
+          <dd>MCP execution logs and responses can leak sensitive payloads</dd>
+          <dt>Kind</dt>
+          <dd><span class="kind core">Core</span> Observability boundary</dd>
+          <dt>Priority</dt>
+          <dd><span class="priority p6">P6</span></dd>
+          <dt>Severity</dt>
+          <dd>High. The default output path echoes request arguments and the raw tool response, so any secret or customer payload that passes through the command can end up in plain text logs.</dd>
+          <dt>Likelihood</dt>
+          <dd>Possible. The command already prints the request arguments and the result body, and many tool payloads are user or server supplied data.</dd>
+          <dt>Impacted area</dt>
+          <dd><code>cli/src/commands/mcp.ts:130-145</code>, <code>cli/src/utils/mcp-integration.ts:125-211</code>, and terminal logs from <code>mcp exec</code>.</dd>
+          <dt>Failure mode</dt>
+          <dd><code>mcpExecCommand</code> writes the JSON request arguments to stdout and then prints the JSON result body verbatim in non-JSON mode. Any sensitive input or tool response can therefore be mirrored back into a terminal buffer, a shell history capture, or a CI log.</dd>
+          <dt>Evidence or rationale</dt>
+          <dd>
+            <ul class="evidence">
+              <li><code>cli/src/commands/mcp.ts:130-145</code> prints <code>Args: ...</code> and then serializes the result object directly.</li>
+              <li><code>cli/src/utils/mcp-integration.ts:174-211</code> returns the raw parsed JSON-RPC response body.</li>
+              <li>There is no redaction path or secure mode in the command.</li>
+            </ul>
+          </dd>
+          <dt>Why this matters</dt>
+          <dd>Generic diagnostic commands should not become a data leak. This path can echo secrets, access tokens, or private project information into logs long after the original command has finished.</dd>
+          <dt>Recommended mitigation</dt>
+          <dd>Add a redaction policy or a secure mode for default output, and keep the full JSON response only behind an explicit machine-readable flag. Preserve the command's success and failure semantics, but avoid printing raw sensitive fields by default.</dd>
+          <dt>Implementation prompt</dt>
+          <dd>
+            Resolve the project root yourself. Inspect <code>cli/src/commands/mcp.ts</code> and <code>cli/src/utils/mcp-integration.ts</code> first. Change the command so it does not echo raw request arguments or response bodies unless the user explicitly opts into a machine-readable or secure diagnostic mode. Keep the current JSON-RPC execution flow, exit behavior, and normal success reporting intact.
+            If output is redacted, make the fallback explanation readable and specific about what was hidden. Preserve the current server interaction contract and do not change the stored config shape. Add tests that prove a secret-like field in the request or response is not echoed in default mode and that non-sensitive summaries still print. Run the MCP command tests, <code>npm run lint</code>, and <code>npm run build</code>. Final report requirements: changed files, commands run, assertions that passed, residual risk, and any testable assumptions.
+          </dd>
+          <dt>Regression tests</dt>
+          <dd>
+            <ul class="tests">
+              <li>Fixture: an MCP tool call containing a secret-like argument. Action: run <code>augx mcp exec</code>. Expectation: the secret is not echoed in the default output.</li>
+              <li>Fixture: a tool result that includes a token-like field. Action: run the same command. Expectation: the result is summarized or redacted unless the explicit machine-readable mode is requested.</li>
+            </ul>
+          </dd>
+          <dt>Additional baseline tests</dt>
+          <dd>
+            <ul class="baseline">
+              <li><code>npm run lint</code></li>
+              <li><code>npm run build</code></li>
+              <li><code>npm run test:vitest -- cli/src/commands/__tests__/mcp.test.ts</code></li>
+            </ul>
+          </dd>
+          <dt>Acceptance criteria</dt>
+          <dd>
+            <ul class="acceptance">
+              <li>Default MCP execution output does not echo raw secrets or raw payloads.</li>
+              <li>Users can still get useful diagnostics about which server and tool ran.</li>
+              <li>Machine-readable output remains available for callers that need the full JSON body.</li>
+            </ul>
+          </dd>
+          <dt>Confidence</dt>
+          <dd>High. The logging and serialization are explicit and easy to verify.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-07" class="issue issue-07" data-issue-kind="core" data-issue-number="7">
+        <header>
+          <div class="issue-kicker">
+            <span class="issue-number">Issue 07</span>
+            <span class="kind core">Core</span>
+            <span class="priority p7">P7</span>
+          </div>
+          <h3>Documented submodule paths do not resolve in the CLI</h3>
+        </header>
+        <dl class="issue-details">
+          <dt>Title</dt>
+          <dd>Documented submodule paths do not resolve in the CLI</dd>
+          <dt>Kind</dt>
+          <dd><span class="kind core">Core</span> Product contract mismatch</dd>
+          <dt>Priority</dt>
+          <dd><span class="priority p7">P7</span></dd>
+          <dt>Severity</dt>
+          <dd>High. The repository's own READMEs promise selective submodule loading, but the current resolver cannot actually find the documented paths.</dd>
+          <dt>Likelihood</dt>
+          <dd>Likely. The direct commands already fail with <code>Module not found</code>, so the mismatch is present in the current tree.</dd>
+          <dt>Impacted area</dt>
+          <dd><code>cli/src/utils/module-system.ts:281-351</code>, <code>cli/src/commands/show.ts</code>, <code>augment-extensions/domain-rules/software-architecture/README.md:55-95</code>, and <code>augment-extensions/visual-design/README.md:82</code>.</dd>
+          <dt>Failure mode</dt>
+          <dd>The current resolver only looks for real module directories that contain <code>module.json</code>. The documented examples instead point at logical submodules such as <code>software-architecture/fundamentals</code> and <code>visual-design/google-modern</code>, which the CLI rejects.</dd>
+          <dt>Evidence or rationale</dt>
+          <dd>
+            <ul class="evidence">
+              <li><code>augment-extensions/domain-rules/software-architecture/README.md:57-95</code> promises selective loading and a specific submodule command.</li>
+              <li><code>augment-extensions/visual-design/README.md:82</code> promises <code>augx show visual-design/google-modern</code>.</li>
+              <li><code>npx tsx cli/src/cli.ts show software-architecture/fundamentals</code> and <code>show visual-design/google-modern</code> both returned <code>Module not found</code>.</li>
+            </ul>
+          </dd>
+          <dt>Why this matters</dt>
+          <dd>These READMEs teach agents and humans a path that does not work. The result is false confidence in the module contract, broken examples in docs, and a wasted support cycle when a user follows the documented command exactly as written.</dd>
+          <dt>Recommended mitigation</dt>
+          <dd>Either teach the resolver how to map the documented submodule aliases onto the parent module and the requested section, or correct the READMEs and examples so they only show real module paths. Preserve the parent module lookup and the existing top-level show behavior.</dd>
+          <dt>Implementation prompt</dt>
+          <dd>
+            Resolve the project root yourself. Inspect <code>cli/src/utils/module-system.ts</code>, <code>cli/src/commands/show.ts</code>, <code>augment-extensions/domain-rules/software-architecture/README.md</code>, and <code>augment-extensions/visual-design/README.md</code> first. Update the contract so the documented submodule paths either resolve correctly or are replaced with supported paths. Prefer a narrow alias resolver or metadata-driven lookup over creating new directories or a wide module-tree refactor.
+            If a submodule alias is unsupported, fail with a clear message that lists valid aliases instead of <code>Module not found</code>. Preserve the current top-level module behavior and do not break existing valid module names. Add tests that exercise the two documented examples and the normal module path. Run the show command tests, <code>npm run lint</code>, and <code>npm run build</code>. Final report requirements: changed files, commands run, assertions that passed, residual risk, and any testable assumptions.
+          </dd>
+          <dt>Regression tests</dt>
+          <dd>
+            <ul class="tests">
+              <li>Action: run <code>augx show software-architecture/fundamentals</code>. Expectation: the requested submodule either resolves or produces a targeted alias error that names the valid path.</li>
+              <li>Action: run <code>augx show visual-design/google-modern</code>. Expectation: the documented vendor style path resolves or fails with a real fallback explanation, not a generic miss.</li>
+            </ul>
+          </dd>
+          <dt>Additional baseline tests</dt>
+          <dd>
+            <ul class="baseline">
+              <li><code>npm run lint</code></li>
+              <li><code>npm run build</code></li>
+              <li><code>npm run test:vitest -- tests/unit/modules/module-loading.test.ts</code></li>
+            </ul>
+          </dd>
+          <dt>Acceptance criteria</dt>
+          <dd>
+            <ul class="acceptance">
+              <li>The documented submodule examples no longer fail silently.</li>
+              <li>The CLI either resolves the aliases or explains the supported paths clearly.</li>
+              <li>Top-level module lookup continues to work as it does today.</li>
+            </ul>
+          </dd>
+          <dt>Confidence</dt>
+          <dd>High. The repository docs and the live CLI output disagree directly.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-08" class="issue issue-08" data-issue-kind="core" data-issue-number="8">
+        <header>
+          <div class="issue-kicker">
+            <span class="issue-number">Issue 08</span>
+            <span class="kind core">Core</span>
+            <span class="priority p8">P8</span>
+          </div>
+          <h3>Self-remove can leave partial cleanup with no rollback</h3>
+        </header>
+        <dl class="issue-details">
+          <dt>Title</dt>
+          <dd>Self-remove can leave partial cleanup with no rollback</dd>
+          <dt>Kind</dt>
+          <dd><span class="kind core">Core</span> Recovery and state integrity</dd>
+          <dt>Priority</dt>
+          <dd><span class="priority p8">P8</span></dd>
+          <dt>Severity</dt>
+          <dd>High. The command is marketed as safe cleanup, but it mutates project state before later writes and has no automatic rollback if the second half fails.</dd>
+          <dt>Likelihood</dt>
+          <dd>Possible. The code writes <code>.augment/extensions.json</code> before it attempts the optional <code>.vscode/extensions.json</code> cleanup and the final log write.</dd>
+          <dt>Impacted area</dt>
+          <dd><code>cli/src/commands/self-remove.ts:109-203</code>, <code>.augment/extensions.json</code>, <code>.vscode/extensions.json</code>, and <code>.augment-removal.log</code>.</dd>
+          <dt>Failure mode</dt>
+          <dd>If the second cleanup write fails, the linked-module list may already be cleared, leaving the user with partial removal and no backup to restore the original state. The warning path logs the failure, but it does not restore the earlier change.</dd>
+          <dt>Evidence or rationale</dt>
+          <dd>
+            <ul class="evidence">
+              <li><code>cli/src/commands/self-remove.ts:163-203</code> writes <code>.augment/extensions.json</code> before later cleanup steps finish.</li>
+              <li>The failure path for <code>.vscode/extensions.json</code> is a warning only, not a rollback.</li>
+              <li>The current tests cover dry-run and success, but not injected write failure after the config mutation.</li>
+            </ul>
+          </dd>
+          <dt>Why this matters</dt>
+          <dd>Users run <code>self-remove</code> because they want a safe exit path. If the command can leave the project half-cleaned with no restore path, it undermines trust in the cleanup workflow and can strand the project in an inconsistent state.</dd>
+          <dt>Recommended mitigation</dt>
+          <dd>Stage backups of both JSON files before the first write, commit the cleanup as a transaction-like sequence, and restore the backups if any later write fails. Keep the dry-run and interactive confirmation flow unchanged.</dd>
+          <dt>Implementation prompt</dt>
+          <dd>
+            Resolve the project root yourself. Inspect <code>cli/src/commands/self-remove.ts</code>, the cleanup log path, and the current self-remove tests first. Change the command so the mutation of <code>.augment/extensions.json</code> and the optional <code>.vscode/extensions.json</code> cleanup are protected by backups that can be restored if any later step fails. Keep the existing dry-run behavior, the confirmation prompts, and the preserved-content message unchanged.
+            If a write fails, restore the original files and report which step failed. Do not delete or rewrite unrelated project files. Add tests that inject a failure after the first write, plus a test that preserves the current success path and dry-run path. Run the self-remove tests, <code>npm run lint</code>, and <code>npm run build</code>. Final report requirements: changed files, commands run, assertions that passed, residual risk, and any testable assumptions.
+          </dd>
+          <dt>Regression tests</dt>
+          <dd>
+            <ul class="tests">
+              <li>Fixture: a read-only or failing <code>.vscode/extensions.json</code> write after <code>.augment/extensions.json</code> is cleared. Action: run <code>augx self-remove</code>. Expectation: the command restores the original linked-module list.</li>
+              <li>Fixture: the current success path. Action: run the command normally. Expectation: the cleanup log is written and the preserved-state message stays intact.</li>
+            </ul>
+          </dd>
+          <dt>Additional baseline tests</dt>
+          <dd>
+            <ul class="baseline">
+              <li><code>npm run lint</code></li>
+              <li><code>npm run build</code></li>
+              <li><code>npm run test:vitest -- cli/src/commands/__tests__/unlink-self-remove.integration.test.ts</code></li>
+            </ul>
+          </dd>
+          <dt>Acceptance criteria</dt>
+          <dd>
+            <ul class="acceptance">
+              <li>A failure in any later cleanup step restores the original project state.</li>
+              <li>Dry-run and confirmation behavior remain unchanged.</li>
+              <li>The cleanup log only reports a success when the full sequence succeeds.</li>
+            </ul>
+          </dd>
+          <dt>Confidence</dt>
+          <dd>High. The write order and the missing rollback path are explicit in the source.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-09" class="issue issue-09" data-issue-kind="core" data-issue-number="9">
+        <header>
+          <div class="issue-kicker">
+            <span class="issue-number">Issue 09</span>
+            <span class="kind core">Core</span>
+            <span class="priority p9">P9</span>
+          </div>
+          <h3>Upgrade can report success even when config writes fail</h3>
+        </header>
+        <dl class="issue-details">
+          <dt>Title</dt>
+          <dd>Upgrade can report success even when config writes fail</dd>
+          <dt>Kind</dt>
+          <dd><span class="kind core">Core</span> Reliability and reporting</dd>
+          <dt>Priority</dt>
+          <dd><span class="priority p9">P9</span></dd>
+          <dt>Severity</dt>
+          <dd>Medium. The module upgrade itself may be real, but the linked-project config can fail to persist while the command still behaves as if everything succeeded.</dd>
+          <dt>Likelihood</dt>
+          <dd>Likely. The code explicitly catches and ignores a config write failure.</dd>
+          <dt>Impacted area</dt>
+          <dd><code>cli/src/commands/upgrade.ts:157-167</code>, linked-module metadata, and the upgrade success summary.</dd>
+          <dt>Failure mode</dt>
+          <dd>The command updates the in-memory config and then swallows any write error with a comment that the upgrade can still report the available version. That means a user can leave the command thinking the upgrade succeeded even when the disk state is stale.</dd>
+          <dt>Evidence or rationale</dt>
+          <dd>
+            <ul class="evidence">
+              <li><code>cli/src/commands/upgrade.ts:157-167</code> mutates the config and then ignores write errors.</li>
+              <li>The same command later reports success if the upgrade branch completes.</li>
+              <li>There is no backup or explicit partial-success warning when the write fails.</li>
+            </ul>
+          </dd>
+          <dt>Why this matters</dt>
+          <dd>A CLI upgrade command should not quietly lie about project state. If the config on disk is unchanged, later commands will read stale versions and the user will have to rediscover the failure by hand.</dd>
+          <dt>Recommended mitigation</dt>
+          <dd>Surface config write failures explicitly and mark the command as partial or failed when the disk state could not be updated. Keep the version comparison, dry-run mode, and upgrade availability checks unchanged.</dd>
+          <dt>Implementation prompt</dt>
+          <dd>
+            Resolve the project root yourself. Inspect <code>cli/src/commands/upgrade.ts</code>, the linked-module config helpers, and the existing upgrade tests first. Stop treating config write failures as ignorable. If the config cannot be updated, surface that failure in the CLI output and do not report the upgrade as fully successful.
+            Preserve the current version comparison, JSON output, and dry-run behavior. Do not add a broad retry system or a new persistence layer. Add tests that simulate a read-only or failing config write and prove the command returns a clear failure or partial-success state. Run the upgrade tests, <code>npm run lint</code>, and <code>npm run build</code>. Final report requirements: changed files, commands run, assertions that passed, residual risk, and any testable assumptions.
+          </dd>
+          <dt>Regression tests</dt>
+          <dd>
+            <ul class="tests">
+              <li>Fixture: a failing write to <code>.augment/extensions.json</code>. Action: run an upgrade. Expectation: the command does not report full success and tells the user the config update failed.</li>
+              <li>Fixture: a normal writable config. Action: run the same upgrade. Expectation: the version update and the config write still succeed.</li>
+            </ul>
+          </dd>
+          <dt>Additional baseline tests</dt>
+          <dd>
+            <ul class="baseline">
+              <li><code>npm run lint</code></li>
+              <li><code>npm run build</code></li>
+              <li><code>npm run test:vitest -- cli/src/commands/__tests__/module-management.test.ts</code></li>
+            </ul>
+          </dd>
+          <dt>Acceptance criteria</dt>
+          <dd>
+            <ul class="acceptance">
+              <li>A config write failure is visible to the user.</li>
+              <li>The command does not claim a full success when the disk state is stale.</li>
+              <li>Normal upgrade behavior remains unchanged when the write succeeds.</li>
+            </ul>
+          </dd>
+          <dt>Confidence</dt>
+          <dd>High. The swallow-and-continue behavior is explicit in the code.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-10" class="issue issue-10" data-issue-kind="core" data-issue-number="10">
+        <header>
+          <div class="issue-kicker">
+            <span class="issue-number">Issue 10</span>
+            <span class="kind core">Core</span>
+            <span class="priority p10">P10</span>
+          </div>
+          <h3>MCP add splits arguments on spaces and breaks quoted flags</h3>
+        </header>
+        <dl class="issue-details">
+          <dt>Title</dt>
+          <dd>MCP add splits arguments on spaces and breaks quoted flags</dd>
+          <dt>Kind</dt>
+          <dd><span class="kind core">Core</span> Configuration parsing</dd>
+          <dt>Priority</dt>
+          <dd><span class="priority p10">P10</span></dd>
+          <dt>Severity</dt>
+          <dd>Medium. It does not execute code by itself, but it can make server configuration silently wrong whenever an argument contains spaces or quoted values.</dd>
+          <dt>Likelihood</dt>
+          <dd>Likely. The current parser uses a naive split, so any command line that needs quoting is vulnerable to mis-parsing.</dd>
+          <dt>Impacted area</dt>
+          <dd><code>cli/src/commands/mcp.ts:76-85</code>, MCP server launch arguments, and the config stored in <code>.augment/mcp/servers.json</code>.</dd>
+          <dt>Failure mode</dt>
+          <dd><code>mcpAddCommand</code> turns the <code>--args</code> string into an array with <code>split(' ')</code>. That breaks quoted arguments, collapses repeated spacing, and makes values containing spaces impossible to round-trip correctly.</dd>
+          <dt>Evidence or rationale</dt>
+          <dd>
+            <ul class="evidence">
+              <li><code>cli/src/commands/mcp.ts:76-85</code> uses <code>options.args.split(' ')</code>.</li>
+              <li>The add command already accepts JSON for <code>--env</code> and <code>--args</code> in the execution command, so the argument contract is inconsistent.</li>
+              <li>The MCP integration tests cover transport handling, not complex argument parsing.</li>
+            </ul>
+          </dd>
+          <dt>Why this matters</dt>
+          <dd>Server launch arguments are configuration, not trivia. A mis-parsed command can make a server fail to start, route the wrong port, or use the wrong file path without an obvious clue about what went wrong.</dd>
+          <dt>Recommended mitigation</dt>
+          <dd>Replace the naive split with a parser that preserves quoted segments, or switch the option contract to a JSON array if the repository already standardizes on JSON for argument lists. Keep the no-argument path and the current config shape stable for valid inputs.</dd>
+          <dt>Implementation prompt</dt>
+          <dd>
+            Resolve the project root yourself. Inspect <code>cli/src/commands/mcp.ts</code>, <code>cli/src/utils/mcp-integration.ts</code>, and the MCP add and execution tests first. Replace the whitespace split with a parser that preserves quoted segments, or move the option contract to a JSON array if that is more consistent with the rest of the repo. Keep the no-argument path, the env parsing, and the stored config shape stable for valid inputs.
+            If the argument string is malformed, fail with a readable error that names the server and the invalid token. Do not introduce a new dependency. Add tests for quoted arguments, spaces inside values, and a simple no-arg config. Run the MCP add tests, <code>npm run lint</code>, and <code>npm run build</code>. Final report requirements: changed files, commands run, assertions that passed, residual risk, and any testable assumptions.
+          </dd>
+          <dt>Regression tests</dt>
+          <dd>
+            <ul class="tests">
+              <li>Fixture: <code>--args \"node server.js\"</code> or another quoted value. Action: run <code>augx mcp add</code>. Expectation: the full argument survives as one token.</li>
+              <li>Fixture: a simple no-arg server. Action: add it. Expectation: the config remains unchanged for the argument field.</li>
+            </ul>
+          </dd>
+          <dt>Additional baseline tests</dt>
+          <dd>
+            <ul class="baseline">
+              <li><code>npm run lint</code></li>
+              <li><code>npm run build</code></li>
+              <li><code>npm run test:vitest -- cli/src/commands/__tests__/mcp.test.ts</code></li>
+            </ul>
+          </dd>
+          <dt>Acceptance criteria</dt>
+          <dd>
+            <ul class="acceptance">
+              <li>Quoted arguments round-trip correctly.</li>
+              <li>Simple configs still work exactly as they do today.</li>
+              <li>Malformed quoting fails with a clear error instead of silently mangling the config.</li>
+            </ul>
+          </dd>
+          <dt>Confidence</dt>
+          <dd>High. The split behavior is explicit and easy to confirm with a quoted path.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-11" class="issue issue-11" data-issue-kind="additional" data-issue-number="11">
+        <header>
+          <div class="issue-kicker">
+            <span class="issue-number">Issue 11</span>
+            <span class="kind additional">Additional</span>
+            <span class="priority p11">P11</span>
+          </div>
+          <h3>Submodule discovery tests target a missing screenplay fixture tree</h3>
+        </header>
+        <dl class="issue-details">
+          <dt>Title</dt>
+          <dd>Submodule discovery tests target a missing screenplay fixture tree</dd>
+          <dt>Kind</dt>
+          <dd><span class="kind additional">Additional</span> Test fixture drift</dd>
+          <dt>Priority</dt>
+          <dd><span class="priority p11">P11</span></dd>
+          <dt>Severity</dt>
+          <dd>Medium. The suite fails because the fixtures and the current repository layout do not agree, which makes the test output much less trustworthy than it should be.</dd>
+          <dt>Likelihood</dt>
+          <dd>Almost certain. The current tree does not contain a <code>writing-standards</code> directory, yet the test file still points at screenplay paths under that tree.</dd>
+          <dt>Impacted area</dt>
+          <dd><code>tests/unit/modules/submodule-discovery.test.ts</code>, fixture maintenance, and the credibility of the module-discovery suite.</dd>
+          <dt>Failure mode</dt>
+          <dd>The test file assumes a <code>writing-standards/screenplay</code> tree and expects submodule children that are not present in the current checkout. That creates a false-red suite that does not tell the team whether module discovery itself is broken.</dd>
+          <dt>Evidence or rationale</dt>
+          <dd>
+            <ul class="evidence">
+              <li><code>tests/unit/modules/submodule-discovery.test.ts:21-101</code> hardcodes screenplay fixtures that do not exist in the current tree.</li>
+              <li>The repository tree listing contains <code>coding-standards</code>, <code>domain-rules</code>, <code>examples</code>, <code>skills</code>, <code>visual-design</code>, and <code>workflows</code>, but no <code>writing-standards</code> directory.</li>
+              <li>The targeted Vitest run failed 5 of 7 tests with <code>expected null not to be null</code> and related fixture-miss assertions.</li>
+            </ul>
+          </dd>
+          <dt>Why this matters</dt>
+          <dd>False red tests waste time and teach the team to ignore the suite. If the fixtures do not match the repo, the team cannot tell whether a future failure is a real regression or just another stale expectation.</dd>
+          <dt>Recommended mitigation</dt>
+          <dd>Retarget the suite at current repository fixtures or add explicit fixture data under a test-owned directory. Keep production module discovery unchanged unless the test suite exposes a real contract gap.</dd>
+          <dt>Implementation prompt</dt>
+          <dd>
+            Resolve the project root yourself. Inspect <code>tests/unit/modules/submodule-discovery.test.ts</code>, the current module tree, and the module discovery implementation first. Replace the screenplay fixtures with the current repository contract, or move the old expectations into a test-owned fixture tree if the screenplay examples are still needed. Do not change production discovery semantics just to satisfy stale paths.
+            If a fixture is missing, make the test setup fail clearly instead of producing a misleading module-discovery failure. Add tests for the real module structure and keep the top-level module checks intact. Run the submodule suite, <code>npm run lint</code>, and <code>npm run build</code>. Final report requirements: changed files, commands run, assertions that passed, residual risk, and any testable assumptions.
+          </dd>
+          <dt>Regression tests</dt>
+          <dd>
+            <ul class="tests">
+              <li>Fixture: the real current module tree. Action: run the discovery suite. Expectation: the suite validates the current contract instead of failing on absent screenplay paths.</li>
+              <li>Fixture: a missing test-owned fixture directory. Action: run the setup. Expectation: the failure message says the fixture is missing, not that discovery failed.</li>
+            </ul>
+          </dd>
+          <dt>Additional baseline tests</dt>
+          <dd>
+            <ul class="baseline">
+              <li><code>npm run test:vitest -- tests/unit/modules/submodule-discovery.test.ts</code></li>
+              <li><code>npm run lint</code></li>
+              <li><code>npm run build</code></li>
+            </ul>
+          </dd>
+          <dt>Acceptance criteria</dt>
+          <dd>
+            <ul class="acceptance">
+              <li>The suite matches the current repository layout.</li>
+              <li>Missing fixtures fail clearly and do not masquerade as product regressions.</li>
+              <li>Top-level module discovery assertions still pass.</li>
+            </ul>
+          </dd>
+          <dt>Confidence</dt>
+          <dd>High. The fixture paths and the repository tree disagree directly.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-12" class="issue issue-12" data-issue-kind="additional" data-issue-number="12">
+        <header>
+          <div class="issue-kicker">
+            <span class="issue-number">Issue 12</span>
+            <span class="kind additional">Additional</span>
+            <span class="priority p12">P12</span>
+          </div>
+          <h3>The source-execution smoke test is Windows-flaky</h3>
+        </header>
+        <dl class="issue-details">
+          <dt>Title</dt>
+          <dd>The source-execution smoke test is Windows-flaky</dd>
+          <dt>Kind</dt>
+          <dd><span class="kind additional">Additional</span> Test harness reliability</dd>
+          <dt>Priority</dt>
+          <dd><span class="priority p12">P12</span></dd>
+          <dt>Severity</dt>
+          <dd>Medium. The test file exists to prove the source CLI path, but its launcher is the unstable piece on this machine.</dd>
+          <dt>Likelihood</dt>
+          <dd>Likely. The targeted run failed on this checkout with <code>spawnSync npx.cmd EINVAL</code>, while the direct source command still works.</dd>
+          <dt>Impacted area</dt>
+          <dd><code>tests/integration/cli/source-execution.test.ts</code>, Windows command launch behavior, and the source smoke contract.</dd>
+          <dt>Failure mode</dt>
+          <dd>The test harness uses <code>npx.cmd --no-install tsx ...</code> on Windows. In this environment that launcher path produced <code>spawnSync npx.cmd EINVAL</code>, which means the harness fails before the CLI contract under test can even run.</dd>
+          <dt>Evidence or rationale</dt>
+          <dd>
+            <ul class="evidence">
+              <li><code>tests/integration/cli/source-execution.test.ts:17-84</code> uses a Windows-specific <code>NPM_EXECUTABLE</code> and <code>--no-install</code> launcher.</li>
+              <li>The targeted Vitest run failed 3 of 4 tests and reported <code>spawnSync npx.cmd EINVAL</code>.</li>
+              <li><code>npx tsx cli/src/cli.ts --help</code> succeeds directly, so the harness is the unstable part.</li>
+            </ul>
+          </dd>
+          <dt>Why this matters</dt>
+          <dd>A smoke test should prove the CLI is runnable, not prove that the test launcher happens to work on one shell configuration. If the harness is flaky, the team loses a fast signal for real source-execution regressions.</dd>
+          <dt>Recommended mitigation</dt>
+          <dd>Replace the Windows-sensitive launcher with a stable local <code>tsx</code> resolution path or another repo-supported command helper. Keep the assertions about help output, unknown commands, and isolated working directories unchanged.</dd>
+          <dt>Implementation prompt</dt>
+          <dd>
+            Resolve the project root yourself. Inspect <code>tests/integration/cli/source-execution.test.ts</code>, the package scripts, and the source CLI smoke path first. Replace the Windows-specific <code>npx --no-install</code> launcher with a stable local invocation that resolves the repo's installed <code>tsx</code> the same way on every platform. Preserve the existing assertions for help output, unknown commands, and the isolated working-directory run.
+            If the harness fails, make the failure message point to the launcher problem instead of the CLI. Do not change the application code just to satisfy the test harness. Add cross-platform coverage that proves the source CLI path and the compiled CLI path both work. Run the source-execution test, <code>npm run lint</code>, and <code>npm run build</code>. Final report requirements: changed files, commands run, assertions that passed, residual risk, and any testable assumptions.
+          </dd>
+          <dt>Regression tests</dt>
+          <dd>
+            <ul class="tests">
+              <li>Action: run the source smoke test on Windows semantics. Expectation: the launcher resolves cleanly and reaches the CLI dispatcher.</li>
+              <li>Action: run the same smoke test from an isolated temp working directory. Expectation: the CLI still returns the expected JSON or help output.</li>
+            </ul>
+          </dd>
+          <dt>Additional baseline tests</dt>
+          <dd>
+            <ul class="baseline">
+              <li><code>npm run lint</code></li>
+              <li><code>npm run build</code></li>
+              <li><code>npm run test:vitest -- tests/integration/cli/source-execution.test.ts</code></li>
+            </ul>
+          </dd>
+          <dt>Acceptance criteria</dt>
+          <dd>
+            <ul class="acceptance">
+              <li>The source smoke test runs on this machine without launcher errors.</li>
+              <li>The CLI assertions still cover help, unknown commands, and isolated execution.</li>
+              <li>The fix is cross-platform, not Windows-only.</li>
+            </ul>
+          </dd>
+          <dt>Confidence</dt>
+          <dd>High. The targeted run failed with a launcher error and the direct CLI command still succeeded.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-13" class="issue issue-13" data-issue-kind="additional" data-issue-number="13">
+        <header>
+          <div class="issue-kicker">
+            <span class="issue-number">Issue 13</span>
+            <span class="kind additional">Additional</span>
+            <span class="priority p13">P13</span>
+          </div>
+          <h3>Collection-delete concurrency is flaky under the full suite</h3>
+        </header>
+        <dl class="issue-details">
+          <dt>Title</dt>
+          <dd>Collection-delete concurrency is flaky under the full suite</dd>
+          <dt>Kind</dt>
+          <dd><span class="kind additional">Additional</span> Test determinism</dd>
+          <dt>Priority</dt>
+          <dd><span class="priority p13">P13</span></dd>
+          <dt>Severity</dt>
+          <dd>Medium. The file passes in isolation, but the full suite showed a failure in the concurrent-delete case, which makes the test signal unstable.</dd>
+          <dt>Likelihood</dt>
+          <dd>Possible. The failure reproduced once in the full suite and disappeared when the file was run alone.</dd>
+          <dt>Impacted area</dt>
+          <dd><code>tests/unit/collections/delete.test.ts</code>, suite isolation, and concurrent filesystem assumptions.</dd>
+          <dt>Failure mode</dt>
+          <dd><strong>Testable assumption:</strong> a shared test environment or suite ordering issue is causing the concurrent delete case to fail in aggregate even though the isolated file passes. Because the test uses raw <code>fs.rm</code>, the current failure is more likely to be a harness problem than a product defect.</dd>
+          <dt>Evidence or rationale</dt>
+          <dd>
+            <ul class="evidence">
+              <li>The full <code>npm run test:vitest</code> run showed one failure in <code>tests/unit/collections/delete.test.ts</code> at the concurrent-delete case.</li>
+              <li>Running <code>npx vitest run tests/unit/collections/delete.test.ts --reporter verbose</code> in isolation passed all 18 tests.</li>
+              <li>The test body exercises <code>fs.rm</code> directly, so the flake is likely in suite isolation or test setup order.</li>
+            </ul>
+          </dd>
+          <dt>Why this matters</dt>
+          <dd>A flaky test suite trains the team to ignore red runs. That makes the remaining failures, which might be real regressions, much harder to trust.</dd>
+          <dt>Recommended mitigation</dt>
+          <dd>Make the concurrent-delete case deterministic or replace it with a test that exercises the actual collection delete helper under controlled isolation. If the product code really is racy, fix the helper instead of letting the test remain flaky.</dd>
+          <dt>Implementation prompt</dt>
+          <dd>
+            Resolve the project root yourself. Inspect <code>tests/unit/collections/delete.test.ts</code> and the shared test environment setup first. Make the concurrent-delete case deterministic under the full suite, or replace it with a test that better reflects the intended collection delete behavior. Do not change production code unless the current helper genuinely has a race.
+            Keep the existing deletion semantics, cleanup checks, and permanent-delete assertions unchanged. If the product helper needs serialization, add it narrowly and preserve the current success path. Add a repeatable test that proves the fix runs the same way inside the full suite and in isolation. Run the collection-delete tests, <code>npm run lint</code>, and <code>npm run build</code>. Final report requirements: changed files, commands run, assertions that passed, residual risk, and any testable assumptions.
+          </dd>
+          <dt>Regression tests</dt>
+          <dd>
+            <ul class="tests">
+              <li>Action: run the collection-delete file in the full suite. Expectation: the concurrent-delete case passes consistently instead of flaking.</li>
+              <li>Action: run the same file in isolation. Expectation: the result matches the full-suite result exactly.</li>
+            </ul>
+          </dd>
+          <dt>Additional baseline tests</dt>
+          <dd>
+            <ul class="baseline">
+              <li><code>npm run test:vitest -- tests/unit/collections/delete.test.ts</code></li>
+              <li><code>npm run lint</code></li>
+              <li><code>npm run build</code></li>
+            </ul>
+          </dd>
+          <dt>Acceptance criteria</dt>
+          <dd>
+            <ul class="acceptance">
+              <li>The concurrent-delete case is no longer flaky.</li>
+              <li>The test reports the same result in isolation and in the full suite.</li>
+              <li>The underlying delete semantics stay the same unless a real race is fixed.</li>
+            </ul>
+          </dd>
+          <dt>Confidence</dt>
+          <dd>Medium. The flake was observed, but the exact source of the interference still needs confirmation.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-14" class="issue issue-14" data-issue-kind="additional" data-issue-number="14">
+        <header>
+          <div class="issue-kicker">
+            <span class="issue-number">Issue 14</span>
+            <span class="kind additional">Additional</span>
+            <span class="priority p14">P14</span>
+          </div>
+          <h3>Init tells users to run a non-existent <code>augx extract-help</code> command</h3>
+        </header>
+        <dl class="issue-details">
+          <dt>Title</dt>
+          <dd>Init tells users to run a non-existent <code>augx extract-help</code> command</dd>
+          <dt>Kind</dt>
+          <dd><span class="kind additional">Additional</span> Recovery copy</dd>
+          <dt>Priority</dt>
+          <dd><span class="priority p14">P14</span></dd>
+          <dt>Severity</dt>
+          <dd>Medium. The main help extraction path already works, but the fallback instruction points users at a command that does not exist.</dd>
+          <dt>Likelihood</dt>
+          <dd>Likely. The failure branch in <code>init.ts</code> is always available when help extraction fails.</dd>
+          <dt>Impacted area</dt>
+          <dd><code>cli/src/commands/init.ts:247-251</code> and the user-facing help extraction fallback.</dd>
+          <dt>Failure mode</dt>
+          <dd>The warning path tells the user to run <code>augx extract-help</code>, but the CLI help does not list that command and no command implementation exists in the repo.</dd>
+          <dt>Evidence or rationale</dt>
+          <dd>
+            <ul class="evidence">
+              <li><code>cli/src/commands/init.ts:247-251</code> prints the dead fallback copy.</li>
+              <li><code>rg -n "extract-help" -g '*.ts' -g '*.md'</code> found no command definition anywhere in the repo.</li>
+              <li>The CLI help emitted by <code>cli/src/cli.ts</code> does not list an <code>extract-help</code> subcommand.</li>
+            </ul>
+          </dd>
+          <dt>Why this matters</dt>
+          <dd>A fallback message should reduce confusion, not create a dead end. If command help extraction fails, the user needs a real next step they can execute immediately.</dd>
+          <dt>Recommended mitigation</dt>
+          <dd>Either add a thin <code>augx extract-help</code> command that wraps <code>extractCommandHelp</code>, or replace the fallback text with a supported manual command and a short explanation of how to regenerate the file. Keep the successful init flow unchanged.</dd>
+          <dt>Implementation prompt</dt>
+          <dd>
+            Resolve the project root yourself. Inspect <code>cli/src/commands/init.ts</code>, <code>cli/src/utils/extractCommandHelp.ts</code>, and the CLI command list first. Fix the fallback so it points to a real command or add a thin <code>augx extract-help</code> command that actually runs the helper and writes <code>.augment/COMMAND_HELP.md</code>. Keep the existing help extraction behavior and the success path unchanged.
+            Preserve the user-facing explanation that help extraction failed, but make the recovery path real. Add a test that proves the fallback text matches the command list or that the new command executes the helper successfully. Run the init tests, <code>npm run lint</code>, and <code>npm run build</code>. Final report requirements: changed files, commands run, assertions that passed, residual risk, and any testable assumptions.
+          </dd>
+          <dt>Regression tests</dt>
+          <dd>
+            <ul class="tests">
+              <li>Fixture: a forced help-extraction failure. Action: run <code>augx init</code>. Expectation: the fallback command or fallback text names a real recovery path.</li>
+              <li>Action: list CLI help. Expectation: the documented recovery path exists in the command list if you add a command.</li>
+            </ul>
+          </dd>
+          <dt>Additional baseline tests</dt>
+          <dd>
+            <ul class="baseline">
+              <li><code>npm run lint</code></li>
+              <li><code>npm run build</code></li>
+              <li><code>npm run test:vitest -- tests/unit/utils/extractCommandHelp.integration.test.ts</code></li>
+            </ul>
+          </dd>
+          <dt>Acceptance criteria</dt>
+          <dd>
+            <ul class="acceptance">
+              <li>The fallback path is real, not dead copy.</li>
+              <li>The init failure message names a command the user can actually run.</li>
+              <li>The successful help extraction path still writes the help file.</li>
+            </ul>
+          </dd>
+          <dt>Confidence</dt>
+          <dd>High. The fallback copy and the absence of a command are both easy to verify.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-15" class="issue issue-15" data-issue-kind="additional" data-issue-number="15">
+        <header>
+          <div class="issue-kicker">
+            <span class="issue-number">Issue 15</span>
+            <span class="kind additional">Additional</span>
+            <span class="priority p15">P15</span>
+          </div>
+          <h3>GUI hides <code>writing-standards</code> modules instead of surfacing them</h3>
+        </header>
+        <dl class="issue-details">
+          <dt>Title</dt>
+          <dd>GUI hides <code>writing-standards</code> modules instead of surfacing them</dd>
+          <dt>Kind</dt>
+          <dd><span class="kind additional">Additional</span> <strong>Testable assumption</strong>, supported by code inspection</dd>
+          <dt>Priority</dt>
+          <dd><span class="priority p15">P15</span></dd>
+          <dt>Severity</dt>
+          <dd>Medium. The GUI likely hides a supported module type, which makes the interactive workflow incomplete even when the underlying module commands can handle that type.</dd>
+          <dt>Likelihood</dt>
+          <dd>Possible. The filter is explicit in the code, and the module-management flow already accepts <code>writing-standards</code> as a valid type.</dd>
+          <dt>Impacted area</dt>
+          <dd><code>cli/src/commands/gui.ts:65-67</code>, <code>cli/src/commands/module-management.ts:266-301</code>, and the interactive module-management flow.</dd>
+          <dt>Failure mode</dt>
+          <dd><strong>Testable assumption:</strong> if a <code>writing-standards</code> module is created or linked, the GUI filters it out entirely instead of surfacing it with an explanation. That means a supported module class can disappear from the interactive menu without any feedback.</dd>
+          <dt>Evidence or rationale</dt>
+          <dd>
+            <ul class="evidence">
+              <li><code>cli/src/commands/gui.ts:65-67</code> filters out <code>writing-standards</code> modules.</li>
+              <li><code>cli/src/commands/module-management.ts:266-301</code> allows <code>writing-standards</code> as a valid module type for scaffolding.</li>
+              <li>The current repository does not ship a live <code>writing-standards</code> tree, so the behavior needs a temporary fixture or a scaffold to confirm.</li>
+            </ul>
+          </dd>
+          <dt>Why this matters</dt>
+          <dd>If the GUI silently hides a supported type, the interactive flow is incomplete and hard to trust. Users will assume the feature does not exist, or worse, that their module creation silently failed.</dd>
+          <dt>Recommended mitigation</dt>
+          <dd>Either remove the filter and allow the module type to appear, or keep it hidden only if the GUI shows an explicit disabled explanation. Preserve keyboard navigation and the current module selection flow for supported types.</dd>
+          <dt>Implementation prompt</dt>
+          <dd>
+            Resolve the project root yourself. Inspect <code>cli/src/commands/gui.ts</code>, <code>cli/src/commands/module-management.ts</code>, and the GUI tests first. Decide whether <code>writing-standards</code> is intentionally unsupported in the GUI. If it is supported, remove the filter and make the type discoverable. If it is intentionally unavailable, surface a disabled explanation instead of hiding it.
+            Keep keyboard navigation, selection, and the existing supported categories unchanged. Add a temporary fixture or scaffold-based test that proves the GUI either displays the module or explains why it is unavailable. Run the GUI tests, <code>npm run lint</code>, and <code>npm run build</code>. Final report requirements: changed files, commands run, assertions that passed, residual risk, and any testable assumptions.
+          </dd>
+          <dt>Regression tests</dt>
+          <dd>
+            <ul class="tests">
+              <li>Fixture: a linked or scaffolded <code>writing-standards</code> module. Action: open the GUI. Expectation: the module is either visible or presented with a clear disabled explanation.</li>
+              <li>Fixture: a normal supported module. Action: open the GUI. Expectation: the existing selection and keyboard flow is unchanged.</li>
+            </ul>
+          </dd>
+          <dt>Additional baseline tests</dt>
+          <dd>
+            <ul class="baseline">
+              <li><code>npm run lint</code></li>
+              <li><code>npm run build</code></li>
+              <li><code>npm run test:vitest -- cli/src/commands/__tests__/gui.test.ts</code></li>
+            </ul>
+          </dd>
+          <dt>Acceptance criteria</dt>
+          <dd>
+            <ul class="acceptance">
+              <li>The GUI no longer hides a supported module type without explanation.</li>
+              <li>Keyboard flow and module selection remain intact.</li>
+              <li>Users can tell whether the type is unsupported or simply absent.</li>
+            </ul>
+          </dd>
+          <dt>Confidence</dt>
+          <dd>Medium. The filter is explicit, but the real-world impact depends on whether the type is intended to be GUI-visible.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-16" class="issue issue-16" data-issue-kind="additional" data-issue-number="16">
+        <header>
+          <div class="issue-kicker">
+            <span class="issue-number">Issue 16</span>
+            <span class="kind additional">Additional</span>
+            <span class="priority p16">P16</span>
+          </div>
+          <h3>Catalog hook install and removal are string-matched and brittle</h3>
+        </header>
+        <dl class="issue-details">
+          <dt>Title</dt>
+          <dd>Catalog hook install and removal are string-matched and brittle</dd>
+          <dt>Kind</dt>
+          <dd><span class="kind additional">Additional</span> Hook maintenance</dd>
+          <dt>Priority</dt>
+          <dd><span class="priority p16">P16</span></dd>
+          <dt>Severity</dt>
+          <dd>Low. The current behavior is usually fine, but the detection strategy is brittle enough to misclassify a hook that mentions <code>augx catalog</code> for another reason.</dd>
+          <dt>Likelihood</dt>
+          <dd>Possible. The create path only checks whether the hook text contains <code>augx catalog</code>, and the remove path only understands the exact generated block.</dd>
+          <dt>Impacted area</dt>
+          <dd><code>cli/src/utils/catalog-sync.ts:20-83</code>, git hook install and removal, and hook-content maintenance.</dd>
+          <dt>Failure mode</dt>
+          <dd><strong>Testable assumption:</strong> a hook that already contains the string <code>augx catalog</code> in a comment or unrelated command can be treated as already configured even when the generated block is absent. The inverse problem also exists, because removal only recognizes the exact sentinel block.</dd>
+          <dt>Evidence or rationale</dt>
+          <dd>
+            <ul class="evidence">
+              <li><code>cli/src/utils/catalog-sync.ts:20-27</code> short-circuits if the existing hook text contains <code>augx catalog</code>.</li>
+              <li><code>cli/src/utils/catalog-sync.ts:60-83</code> removes only the exact generated block.</li>
+              <li>The current tests prove the happy path, but not an unrelated hook that happens to mention the same string.</li>
+            </ul>
+          </dd>
+          <dt>Why this matters</dt>
+          <dd>A hook installer should be idempotent and precise. String matching makes it easy to skip installation or leave a half-removed block behind, which makes repository automation harder to trust over time.</dd>
+          <dt>Recommended mitigation</dt>
+          <dd>Use explicit block markers or a structured sentinel comment to identify the generated section, and keep all non-generated hook lines untouched. Preserve the existing catalog update behavior and the user's own hook content.</dd>
+          <dt>Implementation prompt</dt>
+          <dd>
+            Resolve the project root yourself. Inspect <code>cli/src/utils/catalog-sync.ts</code>, the catalog hook command, and the catalog-hook tests first. Replace the substring-based detection with a precise block marker or another explicit sentinel that can be added, updated, and removed safely. Keep custom hook content and user edits intact.
+            If a hook already contains unrelated <code>augx catalog</code> text, do not misclassify it as configured. Add tests for a hook with unrelated comments, a hook with multiple blocks, and removal of only the generated section. Run the catalog-hook tests, <code>npm run lint</code>, and <code>npm run build</code>. Final report requirements: changed files, commands run, assertions that passed, residual risk, and any testable assumptions.
+          </dd>
+          <dt>Regression tests</dt>
+          <dd>
+            <ul class="tests">
+              <li>Fixture: an existing hook that mentions <code>augx catalog</code> in a comment only. Action: install the hook. Expectation: the generated block is added instead of being skipped.</li>
+              <li>Fixture: a hook with the generated block and unrelated custom lines. Action: remove the hook block. Expectation: only the generated block disappears.</li>
+            </ul>
+          </dd>
+          <dt>Additional baseline tests</dt>
+          <dd>
+            <ul class="baseline">
+              <li><code>npm run lint</code></li>
+              <li><code>npm run build</code></li>
+              <li><code>npm run test:vitest -- tests/integration/cli/catalog-hook.test.ts</code></li>
+            </ul>
+          </dd>
+          <dt>Acceptance criteria</dt>
+          <dd>
+            <ul class="acceptance">
+              <li>Generated hook sections are identified by an explicit marker, not a substring guess.</li>
+              <li>User-authored hook lines remain untouched.</li>
+              <li>Install and remove stay idempotent across repeated runs.</li>
+            </ul>
+          </dd>
+          <dt>Confidence</dt>
+          <dd>Medium. The brittle matching is visible, but the exact false-positive case needs a small confirmation fixture.</dd>
+        </dl>
+      </article>
+    </section>
+
+    <section class="panel" id="scope-notes" aria-labelledby="scope-notes-heading">
+      <h2 id="scope-notes-heading">Scope Notes and Limitations</h2>
+      <ul>
+        <li>The repository already contained unrelated unstaged edits and one untracked test file. I left them alone and grounded this review in current source, current docs, and read-only command results.</li>
+        <li>Some findings are deliberately labeled <strong>Testable assumption</strong> because they need a temporary fixture or a targeted follow-up change to confirm the edge case.</li>
+        <li>The latest pre-mortem file in <code>ai-prompts/</code> was used only for layout and visual tone. The issue list was rebuilt from current evidence.</li>
+        <li>I did not modify application code, tests, CI, or configuration while preparing the report.</li>
+        <li>The most actionable work is clustered around security boundaries, generated file safety, and stale command or fixture contracts. The test drift findings are still worth fixing because they undermine confidence in the suite.</li>
+      </ul>
+    </section>
+
+    <footer class="footer">
+      <div class="footer-grid">
+        <div>
+          <strong>Repository identity</strong>
+          <div>mytech-today-now/augment-extensions</div>
+          <div>C:\GitHub\augx\augment-extensions</div>
+        </div>
+        <div>
+          <strong>Generation timestamp</strong>
+          <div>2026-09-09 23:33:25 America/Chicago</div>
+        </div>
+        <div>
+          <strong>Output path</strong>
+          <div>./ai-prompts/pre-mortem-2026-09-09-23-33-25.html</div>
+        </div>
+        <div>
+          <strong>Report scope</strong>
+          <div>Current working tree, branch <code>codex/catalog-hook-layout-fix</code>, 10 core issues selected by repository inspection and 6 additional supporting issues.</div>
+        </div>
+      </div>
+    </footer>
+  </main>
+</body>
+</html>

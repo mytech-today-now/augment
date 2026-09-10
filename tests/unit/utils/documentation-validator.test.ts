@@ -2,17 +2,26 @@
  * Tests for documentation validation utilities
  */
 
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
-import { validateReadmeStructure, validateModuleDocumentation } from '../documentation-validator';
-import { Module } from '../module-system';
+import {
+  validateReadmeStructure,
+  validateModuleDocumentation
+} from '@cli/utils/documentation-validator';
+import { Module } from '@cli/utils/module-system';
 
 // Mock fs module
-jest.mock('fs');
+vi.mock('fs');
+const mockFs = vi.mocked(fs);
 
 describe('Documentation Validator', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe('validateReadmeStructure', () => {
@@ -36,8 +45,8 @@ This module provides testing functionality.
 Total: ~5,000 characters
 `;
 
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readFileSync as jest.Mock).mockReturnValue(mockReadme);
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readFileSync.mockReturnValue(mockReadme);
 
       const result = validateReadmeStructure('/test/module');
 
@@ -52,8 +61,8 @@ Total: ~5,000 characters
 This is a test module.
 `;
 
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readFileSync as jest.Mock).mockReturnValue(mockReadme);
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readFileSync.mockReturnValue(mockReadme);
 
       const result = validateReadmeStructure('/test/module');
 
@@ -66,8 +75,8 @@ This is a test module.
     it('should warn about short README', () => {
       const mockReadme = `# Test`;
 
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readFileSync as jest.Mock).mockReturnValue(mockReadme);
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readFileSync.mockReturnValue(mockReadme);
 
       const result = validateReadmeStructure('/test/module');
 
@@ -75,7 +84,7 @@ This is a test module.
     });
 
     it('should handle missing README', () => {
-      (fs.existsSync as jest.Mock).mockReturnValue(false);
+      mockFs.existsSync.mockReturnValue(false);
 
       const result = validateReadmeStructure('/test/module');
 
@@ -140,8 +149,8 @@ This is a comprehensive rule.
 \`\`\`
 `;
 
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readFileSync as jest.Mock).mockImplementation((filePath: string) => {
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readFileSync.mockImplementation((filePath: string) => {
         if (filePath.includes('README.md')) return mockReadme;
         if (filePath.includes('rule')) return mockRule;
         return '';
@@ -171,8 +180,8 @@ This is a comprehensive rule.
         examples: []
       };
 
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readFileSync as jest.Mock).mockReturnValue('# Test\n\n## Overview\n\n## Contents\n\n## Character Count\n~5000');
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readFileSync.mockReturnValue('# Test\n\n## Overview\n\n## Contents\n\n## Character Count\n~5000');
 
       const result = validateModuleDocumentation(mockModule);
 

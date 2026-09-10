@@ -1,17 +1,16 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   useSelectionState,
   loadSelectionState,
   saveSelectionState,
   clearSelectionState,
-  SelectionState,
+  type SelectionState
 } from '@cli/gui/state/selection-state';
 
 describe('SelectionState', () => {
-  // Mock localStorage
   const localStorageMock = (() => {
     let store: Record<string, string> = {};
+
     return {
       getItem: (key: string) => store[key] || null,
       setItem: (key: string, value: string) => {
@@ -22,21 +21,22 @@ describe('SelectionState', () => {
       },
       clear: () => {
         store = {};
-      },
+      }
     };
   })();
 
   beforeEach(() => {
-    Object.defineProperty(global, 'localStorage', {
+    Object.defineProperty(globalThis, 'localStorage', {
       value: localStorageMock,
       writable: true,
+      configurable: true
     });
     localStorageMock.clear();
-    vi.clearAllMocks();
   });
 
   afterEach(() => {
     localStorageMock.clear();
+    delete (globalThis as { localStorage?: typeof localStorageMock }).localStorage;
   });
 
   describe('loadSelectionState', () => {
@@ -50,8 +50,8 @@ describe('SelectionState', () => {
         selectedModule: 'typescript-standards',
         selectedVersion: '1.2.0',
         availableVersions: ['1.0.0', '1.1.0', '1.2.0'],
-        isLoading: true, // Should not be persisted
-        error: 'test error', // Should not be persisted
+        isLoading: true,
+        error: 'test error'
       };
 
       saveSelectionState(state);
@@ -61,21 +61,25 @@ describe('SelectionState', () => {
       expect(loaded?.selectedModule).toBe('typescript-standards');
       expect(loaded?.selectedVersion).toBe('1.2.0');
       expect(loaded?.availableVersions).toEqual(['1.0.0', '1.1.0', '1.2.0']);
-      expect(loaded?.isLoading).toBe(false); // Should be reset
-      expect(loaded?.error).toBeNull(); // Should be reset
+      expect(loaded?.isLoading).toBe(false);
+      expect(loaded?.error).toBeNull();
     });
 
     it('should handle corrupted localStorage data', () => {
       localStorageMock.setItem('augx_selection_state', 'invalid json');
       const result = loadSelectionState();
+
       expect(result).toBeNull();
     });
 
     it('should handle missing availableVersions field', () => {
-      localStorageMock.setItem('augx_selection_state', JSON.stringify({
-        selectedModule: 'test',
-        selectedVersion: '1.0.0',
-      }));
+      localStorageMock.setItem(
+        'augx_selection_state',
+        JSON.stringify({
+          selectedModule: 'test',
+          selectedVersion: '1.0.0'
+        })
+      );
 
       const loaded = loadSelectionState();
       expect(loaded?.availableVersions).toEqual([]);
@@ -89,11 +93,12 @@ describe('SelectionState', () => {
         selectedVersion: '2.1.0',
         availableVersions: ['2.0.0', '2.1.0'],
         isLoading: false,
-        error: null,
+        error: null
       };
 
       saveSelectionState(state);
       const stored = localStorageMock.getItem('augx_selection_state');
+
       expect(stored).not.toBeNull();
 
       const parsed = JSON.parse(stored!);
@@ -108,13 +113,13 @@ describe('SelectionState', () => {
         selectedVersion: '1.0.0',
         availableVersions: [],
         isLoading: true,
-        error: null,
+        error: null
       };
 
       saveSelectionState(state);
       const stored = localStorageMock.getItem('augx_selection_state');
       const parsed = JSON.parse(stored!);
-      
+
       expect(parsed.isLoading).toBeUndefined();
     });
 
@@ -124,13 +129,13 @@ describe('SelectionState', () => {
         selectedVersion: '1.0.0',
         availableVersions: [],
         isLoading: false,
-        error: 'Some error occurred',
+        error: 'Some error occurred'
       };
 
       saveSelectionState(state);
       const stored = localStorageMock.getItem('augx_selection_state');
       const parsed = JSON.parse(stored!);
-      
+
       expect(parsed.error).toBeUndefined();
     });
   });
@@ -142,7 +147,7 @@ describe('SelectionState', () => {
         selectedVersion: '1.0.0',
         availableVersions: ['1.0.0'],
         isLoading: false,
-        error: null,
+        error: null
       };
 
       saveSelectionState(state);
@@ -153,10 +158,9 @@ describe('SelectionState', () => {
     });
   });
 
-  describe('useSelectionState hook', () => {
+  describe('useSelectionState', () => {
     it('should initialize with default state', () => {
-      const { result } = renderHook(() => useSelectionState());
-      const [state] = result.current;
+      const [state] = useSelectionState();
 
       expect(state.selectedModule).toBeNull();
       expect(state.selectedVersion).toBeNull();
@@ -171,13 +175,12 @@ describe('SelectionState', () => {
         selectedVersion: '3.0.0',
         availableVersions: ['2.0.0', '3.0.0'],
         isLoading: false,
-        error: null,
+        error: null
       };
 
       saveSelectionState(persistedState);
 
-      const { result } = renderHook(() => useSelectionState());
-      const [state] = result.current;
+      const [state] = useSelectionState();
 
       expect(state.selectedModule).toBe('beads-workflow');
       expect(state.selectedVersion).toBe('3.0.0');
@@ -185,124 +188,81 @@ describe('SelectionState', () => {
     });
 
     it('should select module and clear version', () => {
-      const { result } = renderHook(() => useSelectionState());
+      const [state, actions] = useSelectionState();
 
-      act(() => {
-        const [, actions] = result.current;
-        actions.selectModule('typescript-standards');
-      });
+      actions.selectModule('typescript-standards');
 
-      const [state] = result.current;
       expect(state.selectedModule).toBe('typescript-standards');
       expect(state.selectedVersion).toBeNull();
       expect(state.availableVersions).toEqual([]);
     });
 
     it('should select version', () => {
-      const { result } = renderHook(() => useSelectionState());
+      const [state, actions] = useSelectionState();
 
-      act(() => {
-        const [, actions] = result.current;
-        actions.selectVersion('1.5.0');
-      });
+      actions.selectVersion('1.5.0');
 
-      const [state] = result.current;
       expect(state.selectedVersion).toBe('1.5.0');
     });
 
     it('should set available versions', () => {
-      const { result } = renderHook(() => useSelectionState());
+      const [state, actions] = useSelectionState();
       const versions = ['1.0.0', '1.1.0', '1.2.0', '2.0.0'];
 
-      act(() => {
-        const [, actions] = result.current;
-        actions.setAvailableVersions(versions);
-      });
+      actions.setAvailableVersions(versions);
 
-      const [state] = result.current;
       expect(state.availableVersions).toEqual(versions);
     });
 
     it('should set loading state', () => {
-      const { result } = renderHook(() => useSelectionState());
+      const [state, actions] = useSelectionState();
 
-      act(() => {
-        const [, actions] = result.current;
-        actions.setLoading(true);
-      });
+      actions.setLoading(true);
 
-      let [state] = result.current;
       expect(state.isLoading).toBe(true);
 
-      act(() => {
-        const [, actions] = result.current;
-        actions.setLoading(false);
-      });
+      actions.setLoading(false);
 
-      [state] = result.current;
       expect(state.isLoading).toBe(false);
     });
 
     it('should set error state', () => {
-      const { result } = renderHook(() => useSelectionState());
+      const [state, actions] = useSelectionState();
 
-      act(() => {
-        const [, actions] = result.current;
-        actions.setError('Failed to load versions');
-      });
+      actions.setError('Failed to load versions');
 
-      let [state] = result.current;
       expect(state.error).toBe('Failed to load versions');
 
-      act(() => {
-        const [, actions] = result.current;
-        actions.setError(null);
-      });
+      actions.setError(null);
 
-      [state] = result.current;
       expect(state.error).toBeNull();
     });
 
     it('should clear selection', () => {
-      const { result } = renderHook(() => useSelectionState());
+      const [state, actions] = useSelectionState();
 
-      // Set some state first
-      act(() => {
-        const [, actions] = result.current;
-        actions.selectModule('test-module');
-        actions.selectVersion('1.0.0');
-        actions.setAvailableVersions(['1.0.0', '2.0.0']);
-        actions.setError('test error');
-      });
+      actions.selectModule('test-module');
+      actions.selectVersion('1.0.0');
+      actions.setAvailableVersions(['1.0.0', '2.0.0']);
+      actions.setError('test error');
 
-      // Clear selection
-      act(() => {
-        const [, actions] = result.current;
-        actions.clearSelection();
-      });
+      actions.clearSelection();
 
-      const [state] = result.current;
       expect(state.selectedModule).toBeNull();
       expect(state.selectedVersion).toBeNull();
       expect(state.availableVersions).toEqual([]);
       expect(state.isLoading).toBe(false);
       expect(state.error).toBeNull();
-
-      // Verify localStorage was also cleared
       expect(localStorageMock.getItem('augx_selection_state')).toBeNull();
     });
 
     it('should persist state changes to localStorage', () => {
-      const { result } = renderHook(() => useSelectionState());
+      const [, actions] = useSelectionState();
 
-      act(() => {
-        const [, actions] = result.current;
-        actions.selectModule('test-module');
-        actions.selectVersion('2.0.0');
-        actions.setAvailableVersions(['1.0.0', '2.0.0']);
-      });
+      actions.selectModule('test-module');
+      actions.selectVersion('2.0.0');
+      actions.setAvailableVersions(['1.0.0', '2.0.0']);
 
-      // Wait for useEffect to run
       const stored = localStorageMock.getItem('augx_selection_state');
       expect(stored).not.toBeNull();
 
@@ -313,4 +273,3 @@ describe('SelectionState', () => {
     });
   });
 });
-

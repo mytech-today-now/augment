@@ -24,6 +24,7 @@ function cleanupModuleMirrors(projectRoot: string, moduleId: string): void {
   if (entries.length === 0) {
     return;
   }
+  const sourceByTarget = new Map(entries.map((entry) => [entry.targetPath, entry.sourcePath]));
   const result = unlinkModuleMirrors(projectRoot, moduleId, entries);
   const kept = result.outcomes.filter((o) => o.status === 'kept-hand-edited');
   const removed = result.outcomes.filter((o) => o.status === 'removed').length;
@@ -40,8 +41,18 @@ function cleanupModuleMirrors(projectRoot: string, moduleId: string): void {
       )
     );
     for (const k of kept) {
-      console.log(chalk.yellow(`    - ${k.targetPath}`));
+      const sourcePath = sourceByTarget.get(k.targetPath);
+      console.log(
+        chalk.yellow(
+          `    - ${k.targetPath}${sourcePath ? ` (recreate from ${sourcePath})` : ''}`
+        )
+      );
     }
+    console.log(
+      chalk.yellow(
+        '  Rollback: restore the tracked mirror entry in .augment/coordination.json or recreate the target from its recorded source path.'
+      )
+    );
   }
   persistMirrorEntries(projectRoot, moduleId, []);
 }

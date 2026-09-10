@@ -123,6 +123,20 @@ export class InspectionCache<T = any> {
   }
 
   /**
+   * Disable caching.
+   */
+  disable(): void {
+    this.setEnabled(false);
+  }
+
+  /**
+   * Enable caching.
+   */
+  enable(): void {
+    this.setEnabled(true);
+  }
+
+  /**
    * Check if caching is enabled
    */
   isEnabled(): boolean {

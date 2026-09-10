@@ -3,17 +3,23 @@
  * Tests HTML, CSS, JS module loading, collection loading, and module discovery
  */
 
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
-import { loadModule, discoverModules, discoverCollections } from '../module-system';
+import * as moduleSystem from '@cli/utils/module-system';
+import { loadModule, discoverModules, discoverCollections } from '@cli/utils/module-system';
 
 // Mock fs module
-jest.mock('fs');
-const mockFs = fs as jest.Mocked<typeof fs>;
+vi.mock('fs');
+const mockFs = vi.mocked(fs);
 
 describe('Module Loading', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe('loadModule', () => {
@@ -186,7 +192,7 @@ describe('Module Loading', () => {
 
   describe('discoverCollections', () => {
     it('should discover html-css-js collection', () => {
-      const collectionsDir = '/test/augment-extensions/collections';
+      const collectionsDir = path.join(moduleSystem.getModulesDir(), 'collections');
       const collectionPath = path.join(collectionsDir, 'html-css-js');
       const collectionJson = {
         name: 'html-css-js',
@@ -219,11 +225,6 @@ describe('Module Loading', () => {
           return JSON.stringify(collectionJson);
         }
         return '';
-      });
-
-      // Mock getModulesDir
-      jest.spyOn(path, 'join').mockImplementation((...args: string[]) => {
-        return args.join('/');
       });
 
       const collections = discoverCollections();

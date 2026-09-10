@@ -1,5 +1,6 @@
 import { filterCollectionsToRepoModules, filterLinkedModulesToRepoModules, filterModulesForGui } from '../../cli/src/commands/gui';
 import type { Collection, Module } from '../../cli/src/utils/module-system';
+import { formatModuleChoice } from '../../cli/src/utils/gui-helpers';
 
 // Mock test environment for GUI components
 interface ModuleMetadata {
@@ -647,6 +648,28 @@ describe('GUI Components Tests', () => {
   });
 
   describe('Accessibility Features', () => {
+    it('should expose accessible labels for GUI module choices', () => {
+      const module = createRepoModule({
+        fullName: 'coding-standards/typescript',
+        metadata: {
+          name: 'typescript',
+          version: '1.0.0',
+          displayName: 'TypeScript Standards',
+          description: 'TypeScript coding standards',
+          type: 'coding-standards',
+          tags: ['typescript', 'standards']
+        }
+      });
+
+      const choice = formatModuleChoice(module, ['coding-standards/typescript']);
+
+      expect(choice.name).toBe('TypeScript Standards (coding-standards/typescript)');
+      expect(choice.value).toBe('coding-standards/typescript');
+      expect(choice.description).toBe('TypeScript coding standards');
+      expect(choice.linked).toBe(true);
+      expect(choice.checked).toBe(true);
+    });
+
     it('should provide clear instructions for screen readers', async () => {
       const instructions = 'Select modules to link (↑↓ to navigate, Space to select, Enter to confirm)';
       expect(instructions).toContain('navigate');

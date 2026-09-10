@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Repository-grounded pre-mortem for Augment Extensions on branch codex/catalog-hook-layout-fix.">
+  <title>Augment Extensions Pre-Mortem | 2026-09-09</title>
+  <style>
+    :root {
+      --bg: #f3efe7;
+      --surface: #fffaf1;
+      --surface-strong: #ffffff;
+      --ink: #1f2732;
+      --muted: #5c6470;
+      --accent: #0f766e;
+      --accent-soft: #d8eee9;
+      --gold: #9a6b15;
+      --gold-soft: #f4e5bc;
+      --red: #a83b32;
+      --red-soft: #f6dcd8;
+      --border: #d9cfbf;
+      --shadow: 0 12px 30px rgba(52, 42, 29, 0.09);
+      --radius: 16px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--bg); }
+    body {
+      margin: 0;
+      line-height: 1.55;
+      background:
+        radial-gradient(circle at 8% 0%, rgba(15, 118, 110, 0.09), transparent 25rem),
+        radial-gradient(circle at 94% 12%, rgba(154, 107, 21, 0.10), transparent 28rem),
+        var(--bg);
+    }
+    a { color: var(--accent); }
+    code {
+      font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+      font-size: 0.9em;
+      background: #eee7da;
+      border: 1px solid #ded4c5;
+      border-radius: 5px;
+      padding: 0.08em 0.3em;
+      overflow-wrap: anywhere;
+    }
+    .page { width: min(1120px, calc(100% - 32px)); margin: 0 auto; padding: 42px 0 72px; }
+    .eyebrow {
+      color: var(--accent);
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3 { line-height: 1.15; letter-spacing: -0.025em; }
+    h1 { max-width: 900px; margin: 10px 0 16px; font-size: clamp(2.25rem, 5vw, 4.8rem); }
+    h2 { margin: 0 0 14px; font-size: clamp(1.45rem, 3vw, 2.15rem); }
+    h3 { margin: 0; font-size: 1.18rem; }
+    p { margin: 0 0 12px; }
+    .lede { max-width: 860px; color: var(--muted); font-size: 1.08rem; }
+    .hero, .panel, article {
+      background: rgba(255, 250, 241, 0.93);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .hero { padding: clamp(24px, 5vw, 48px); margin-bottom: 22px; }
+    .meta-grid, .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 28px;
+    }
+    .meta, .stat {
+      min-width: 0;
+      padding: 13px 15px;
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      background: rgba(255, 255, 255, 0.58);
+    }
+    .meta-label, .stat-label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.73rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .meta-value, .stat-value { display: block; margin-top: 3px; font-weight: 750; overflow-wrap: anywhere; }
+    .panel { padding: 24px; margin: 22px 0; }
+    .panel h2 { color: var(--accent); }
+    .scope-grid {
+      display: grid;
+      grid-template-columns: 1.25fr 1fr;
+      gap: 22px;
+    }
+    .scope-grid ul { margin: 8px 0 0; padding-left: 1.25rem; }
+    .scope-grid li { margin: 6px 0; }
+    .callout {
+      border-left: 4px solid var(--gold);
+      padding: 14px 16px;
+      background: #fff5dc;
+      border-radius: 0 10px 10px 0;
+    }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 850px; }
+    caption { text-align: left; color: var(--muted); margin-bottom: 12px; }
+    th, td { padding: 11px 12px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+    th { color: var(--muted); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; }
+    tbody tr:last-child td { border-bottom: 0; }
+    .kind {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 3px 9px;
+      font-size: 0.76rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .kind.core { color: #075e57; background: var(--accent-soft); }
+    .kind.additional { color: #74470a; background: var(--gold-soft); }
+    .priority { font-weight: 850; white-space: nowrap; }
+    .priority.p1, .priority.p2, .priority.p3 { color: var(--red); }
+    .priority.p4, .priority.p5, .priority.p6, .priority.p7, .priority.p8 { color: #8e5e0e; }
+    .priority.p9, .priority.p10, .priority.p11, .priority.p12, .priority.p13, .priority.p14, .priority.p15, .priority.p16 { color: var(--accent); }
+    .issues { display: grid; gap: 18px; }
+    article { overflow: hidden; }
+    article header { padding: 22px 24px 18px; border-bottom: 1px solid var(--border); background: var(--surface-strong); }
+    .article-kicker { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+    .issue-number { color: var(--muted); font-size: 0.82rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+    article h3 { max-width: 950px; }
+    .issue-details { display: grid; grid-template-columns: 190px minmax(0, 1fr); margin: 0; }
+    .issue-details dt, .issue-details dd { margin: 0; padding: 13px 24px; border-bottom: 1px solid var(--border); }
+    .issue-details dt {
+      color: var(--muted);
+      font-size: 0.76rem;
+      font-weight: 850;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: #fbf5e9;
+    }
+    .issue-details dd { background: rgba(255, 255, 255, 0.38); }
+    .issue-details dd:last-child, .issue-details dt:nth-last-of-type(1) { border-bottom: 0; }
+    .evidence { margin: 0; padding-left: 1.2rem; }
+    .evidence li { margin: 4px 0; }
+    .tag {
+      display: inline-block;
+      margin: 0 5px 4px 0;
+      padding: 2px 7px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      background: #fbf7ef;
+    }
+    .footer-note { color: var(--muted); font-size: 0.9rem; margin-top: 28px; }
+    @media (max-width: 860px) {
+      .meta-grid, .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .scope-grid { grid-template-columns: 1fr; }
+      .issue-details { grid-template-columns: 1fr; }
+      .issue-details dt { padding-bottom: 4px; border-bottom: 0; }
+      .issue-details dd { padding-top: 4px; }
+    }
+    @media (max-width: 620px) {
+      .page { width: min(100% - 20px, 1120px); padding-top: 20px; }
+      .meta-grid, .stat-grid { grid-template-columns: 1fr; }
+      .hero, .panel { padding: 20px; }
+      article header, .issue-details dt, .issue-details dd { padding-left: 18px; padding-right: 18px; }
+    }
+    @media print {
+      :root { --bg: #ffffff; --surface: #ffffff; --surface-strong: #ffffff; --ink: #000000; --muted: #333333; --border: #aaaaaa; }
+      body { background: #ffffff; }
+      .page { width: 100%; padding: 0; }
+      .hero, .panel, article { box-shadow: none; break-inside: avoid; }
+      article { margin-top: 14px; }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <div class="eyebrow">Reliability review / pre-mortem</div>
+      <h1>How Augment Extensions could fail on the next release</h1>
+      <p class="lede">A repository-grounded failure forecast for the current checkout. The aim is to identify concrete ways the CLI, test system, mirror and export workflows, MCP integration, and lifecycle commands could fail under ordinary use or adversarial inputs before those failures reach users.</p>
+      <div class="meta-grid">
+        <div class="meta"><span class="meta-label">Repository</span><span class="meta-value">my-tech-today-now/augment-extensions</span></div>
+        <div class="meta"><span class="meta-label">Branch</span><span class="meta-value">codex/catalog-hook-layout-fix</span></div>
+        <div class="meta"><span class="meta-label">Version</span><span class="meta-value">3.1.3</span></div>
+        <div class="meta"><span class="meta-label">Generated</span><span class="meta-value">2026-09-09 15:15:24 America/Chicago</span></div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat"><span class="stat-label">Core findings</span><span class="stat-value">10</span></div>
+        <div class="stat"><span class="stat-label">Additional findings</span><span class="stat-value">6</span></div>
+        <div class="stat"><span class="stat-label">Lint / build</span><span class="stat-value">Passed</span></div>
+        <div class="stat"><span class="stat-label">Vitest</span><span class="stat-value">11 failed tests / 12 failed files</span></div>
+      </div>
+    </header>
+
+    <section class="panel" aria-labelledby="executive-summary">
+      <h2 id="executive-summary">Executive summary</h2>
+      <div class="scope-grid">
+        <div>
+          <p>The highest-confidence near-term breakages are already observable. The repository lint and TypeScript build pass, but the direct source CLI smoke path fails under Node 24 with a tsx transform error. The Vitest suite also has import and dependency drift, an orphaned mirror regression, timeouts in command integration tests, and a submodule fixture mismatch. These are not hypothetical design concerns: they are current signals that release validation and cleanup behavior do not share one reliable contract.</p>
+          <p>The next risk tier is boundary handling. Module resolution and file inspection accept paths that need explicit containment checks. MCP configuration can expose environment values when rendered as JSON, MCP child processes have no timeout or output budget, and skill execution enables shell interpretation of repository metadata. Those paths should be reviewed as security boundaries even when the normal local workflow is trusted.</p>
+        </div>
+        <div class="callout">
+          <strong>Release posture:</strong>
+          <p>Do not treat a green lint and build as sufficient release evidence. Before shipping a CLI change, establish one supported source and compiled execution path, make the relevant test harnesses agree on module ownership, and add failure-injection tests for cleanup, timeouts, drift, and partial writes.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="scope-method">
+      <h2 id="scope-method">Scope and method</h2>
+      <div class="scope-grid">
+        <div>
+          <p>This report uses the current working tree on <code>codex/catalog-hook-layout-fix</code>. A previous complete pre-mortem exists in <code>ai-prompts/</code>; its visual system was reused, but its issue list was not treated as current evidence because several of its findings are now implemented or no longer match the checkout.</p>
+          <ul>
+            <li>Inspected package scripts, Jest and Vitest configuration, CLI source, module and mirror utilities, MCP integration, lifecycle commands, test fixtures, and repository layout.</li>
+            <li>Ran <code>npm run lint</code>: passed.</li>
+            <li>Ran <code>npm run build</code>: passed.</li>
+            <li>Ran <code>npm run test:vitest</code>: 42 files passed and 12 failed; 620 tests passed and 11 failed.</li>
+            <li>Ran the focused Jest GUI suite: 34 tests passed.</li>
+            <li>Ran <code>npx tsx cli/src/cli.ts --help</code>: failed with a syntax error at the shebang under Node 24.14.1.</li>
+          </ul>
+        </div>
+        <div>
+          <p>Severity describes the user or release impact if the failure occurs. Likelihood describes how readily the current code or observed workflow can reach it. Priorities are ordered for engineering attention, not as a substitute for a product decision.</p>
+          <p>Assumptions are called out where a security finding depends on an untrusted caller or a configured value containing a secret. Those assumptions are testable: each implementation prompt requests a focused regression test that proves the boundary or documents the supported trust model.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="risk-register">
+      <h2 id="risk-register">Risk register</h2>
+      <div class="table-wrap">
+        <table>
+          <caption>Sixteen repository-grounded failure modes, ordered by recommended implementation priority.</caption>
+          <thead><tr><th>ID</th><th>Kind</th><th>Title</th><th>Priority</th><th>Severity</th><th>Likelihood</th><th>Impacted area</th></tr></thead>
+          <tbody>
+            <tr><td>01</td><td><span class="kind core">Core</span></td><td>Source CLI smoke path fails under tsx</td><td class="priority p1">P1</td><td>High</td><td>Almost certain</td><td>CLI execution and release smoke tests</td></tr>
+            <tr><td>02</td><td><span class="kind core">Core</span></td><td>Vitest imports do not match source ownership or installed dependencies</td><td class="priority p2">P2</td><td>High</td><td>Almost certain</td><td>Unit test discovery and CI feedback</td></tr>
+            <tr><td>03</td><td><span class="kind core">Core</span></td><td>Mirror relink leaves broken symlink orphans</td><td class="priority p3">P3</td><td>High</td><td>Likely</td><td>Link, unlink, and mirror refresh</td></tr>
+            <tr><td>04</td><td><span class="kind core">Core</span></td><td>Single-file mirrors overwrite drifted targets</td><td class="priority p4">P4</td><td>High</td><td>Likely</td><td>Cross-platform rule materialization</td></tr>
+            <tr><td>05</td><td><span class="kind core">Core</span></td><td>Module lookup can escape the modules root</td><td class="priority p5">P5</td><td>High</td><td>Possible</td><td>Module show, link, and resolution</td></tr>
+            <tr><td>06</td><td><span class="kind core">Core</span></td><td>Show file inspection can read outside a module</td><td class="priority p6">P6</td><td>High</td><td>Possible</td><td>Show command and local file disclosure</td></tr>
+            <tr><td>07</td><td><span class="kind core">Core</span></td><td>MCP JSON listing can disclose environment values</td><td class="priority p7">P7</td><td>High</td><td>Possible</td><td>MCP configuration diagnostics</td></tr>
+            <tr><td>08</td><td><span class="kind core">Core</span></td><td>MCP child processes have no timeout or output budget</td><td class="priority p8">P8</td><td>High</td><td>Likely</td><td>MCP execution and CLI responsiveness</td></tr>
+            <tr><td>09</td><td><span class="kind core">Core</span></td><td>Skill execution enables shell interpretation</td><td class="priority p9">P9</td><td>High</td><td>Possible</td><td>Skill run and repository metadata trust</td></tr>
+            <tr><td>10</td><td><span class="kind core">Core</span></td><td>Malformed module metadata silently disappears</td><td class="priority p10">P10</td><td>Medium</td><td>Likely</td><td>Discovery, diagnostics, and operator recovery</td></tr>
+            <tr><td>11</td><td><span class="kind additional">Additional</span></td><td>Multi-target export can leave partial output</td><td class="priority p11">P11</td><td>Medium</td><td>Possible</td><td>Export consistency across target tools</td></tr>
+            <tr><td>12</td><td><span class="kind additional">Additional</span></td><td>Submodule discovery tests depend on absent fixtures</td><td class="priority p12">P12</td><td>Medium</td><td>Almost certain</td><td>Fixture maintenance and test trust</td></tr>
+            <tr><td>13</td><td><span class="kind additional">Additional</span></td><td>Self-update installs latest without pin or rollback</td><td class="priority p13">P13</td><td>Medium</td><td>Possible</td><td>CLI upgrade reliability</td></tr>
+            <tr><td>14</td><td><span class="kind additional">Additional</span></td><td>Self-remove commits primary state before cleanup</td><td class="priority p14">P14</td><td>Medium</td><td>Possible</td><td>Uninstall recovery and configuration integrity</td></tr>
+            <tr><td>15</td><td><span class="kind additional">Additional</span></td><td>Jest, Vitest, and standalone harness disagree</td><td class="priority p15">P15</td><td>Medium</td><td>Likely</td><td>Validation ownership and CI cost</td></tr>
+            <tr><td>16</td><td><span class="kind additional">Additional</span></td><td>MCP wrapper generation lacks path and frontmatter containment</td><td class="priority p16">P16</td><td>Medium</td><td>Possible</td><td>Generated skill wrappers and metadata safety</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="issues" aria-label="Detailed failure articles">
+      <article id="issue-01">
+        <header><div class="article-kicker"><span class="issue-number">Issue 01</span><span class="kind core">Core</span><span class="priority p1">P1</span></div><h3>Source CLI smoke path fails under tsx</h3></header>
+        <dl class="issue-details">
+          <dt>Title</dt><dd>Source CLI smoke path fails under tsx</dd>
+          <dt>Kind</dt><dd><span class="tag">Core</span>Release-blocking execution path</dd>
+          <dt>Priority</dt><dd>P1</dd>
+          <dt>Severity</dt><dd>High. A supported-looking command path cannot start, so users and the standalone harness receive no CLI behavior at all.</dd>
+          <dt>Likelihood</dt><dd>Almost certain. It reproduces now with <code>npx tsx cli/src/cli.ts --help</code> under Node 24.14.1.</dd>
+          <dt>Impacted area</dt><dd><code>cli/src/cli.ts</code>, the <code>test-all.ts</code> source runner, package smoke commands, and developer onboarding.</dd>
+          <dt>Failure mode</dt><dd>The TypeScript entrypoint begins with a Node shebang, but the repository's tsx execution path reports <code>Syntax error "!"</code> at line 1 instead of stripping the shebang and dispatching the CLI.</dd>
+          <dt>Evidence or rationale</dt><dd><ul class="evidence"><li><code>cli/src/cli.ts:1</code> is <code>#!/usr/bin/env node</code>.</li><li><code>test-all.ts:14-25</code> hardcodes a tsx loader path and <code>test-all.ts:292-310</code> invokes <code>npx tsx</code> in a temporary cwd.</li><li>The direct command failed before argument handling, while <code>npm run build</code> passed, demonstrating a source-runner and compiled-runner split.</li></ul></dd>
+          <dt>Why this matters</dt><dd>Build success can mask a broken developer and integration path. A release check that uses source execution will fail for the wrong reason, while a user who follows an obvious source command cannot even reach help or diagnostics.</dd>
+          <dt>Recommended mitigation</dt><dd>Choose one supported source execution contract, make the shebang safe for that runner or invoke the runner through a documented wrapper, and add a smoke test that executes the exact command on the supported Node versions. Keep compiled execution covered separately.</dd>
+          <dt>Implementation prompt</dt><dd>Resolve the repository root before editing. Inspect <code>package.json</code>, <code>cli/src/cli.ts</code>, <code>test-all.ts</code>, the TypeScript configuration, and the build output path. Use the observed tsx syntax error as the primary evidence. Preserve normal CLI dispatch, the executable shebang behavior after compilation, argument parsing, and the temporary-sandbox contract. Do not rewrite unrelated commands or replace the whole test harness. Implement the smallest compatible fix, then exercise expected errors such as missing commands, unexpected errors such as a loader mismatch, and a fallback copy or wrapper path if the preferred runner is unavailable. Preserve user state and avoid mutating installed packages. Add assertions for source help, compiled help, exit code, stderr, and one representative command. Include security and recovery checks for executing only the intended entrypoint, accessibility checks for readable diagnostics, and a rollback plan if the fix changes packaging or the public executable. Finish by reporting root, files, evidence, non-changes, commands, results, and any remaining risk.</dd>
+          <dt>Regression tests</dt><dd>Run <code>npx tsx cli/src/cli.ts --help</code> and assert exit code 0, non-empty help, and no transform error. Run the built CLI with the same assertion. Add a test for an unknown command with a stable nonzero exit and actionable stderr.</dd>
+          <dt>Additional baseline tests</dt><dd><code>npm run lint</code>; <code>npm run build</code>; the focused command execution tests; and the smallest supported Node version matrix.</dd>
+          <dt>Acceptance criteria</dt><dd>The documented source smoke command reaches the dispatcher, compiled execution remains valid, expected bad input still fails clearly, and the standalone harness no longer reports the line-one transform error.</dd>
+          <dt>Confidence</dt><dd>High. The failure was reproduced directly and the relevant source-runner call sites are explicit.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-02">
+        <header><div class="article-kicker"><span class="issue-number">Issue 02</span><span class="kind core">Core</span><span class="priority p2">P2</span></div><h3>Vitest imports do not match source ownership or installed dependencies</h3></header>
+        <dl class="issue-details">
+          <dt>Title</dt><dd>Vitest imports do not match source ownership or installed dependencies</dd>
+          <dt>Kind</dt><dd><span class="tag">Core</span>Test feedback integrity</dd>
+          <dt>Priority</dt><dd>P2</dd>
+          <dt>Severity</dt><dd>High. A large part of the unit suite cannot load, reducing confidence in both green and red results.</dd>
+          <dt>Likelihood</dt><dd>Almost certain. The current Vitest run reports 12 failed files and 11 failed tests from missing modules, missing packages, or incompatible globals.</dd>
+          <dt>Impacted area</dt><dd><code>tests/unit/utils</code>, GUI tests, Vitest configuration, package devDependencies, and CI test selection.</dd>
+          <dt>Failure mode</dt><dd>Tests import sibling paths such as <code>../module-system</code> even though implementations live under <code>cli/src/utils</code>; GUI tests import <code>@testing-library/react</code> without that package in the declared devDependencies; another test assumes a Jest global under Vitest.</dd>
+          <dt>Evidence or rationale</dt><dd><ul class="evidence"><li>Current Vitest output includes missing <code>documentation-validator</code>, <code>inspection-cache</code>, <code>install-rules</code>, <code>module-system</code>, and <code>skill-system</code> modules.</li><li><code>tests/unit/gui/navigation-state.test.ts</code> and <code>selection-state.test.ts</code> cannot resolve <code>@testing-library/react</code>.</li><li><code>tests/unit/utils/extractCommandHelp.test.ts</code> reports <code>jest is not defined</code>.</li></ul></dd>
+          <dt>Why this matters</dt><dd>Developers may repair production code to satisfy a stale test path or disable failing tests. Missing ownership conventions also make new tests fail unpredictably when files move between source and test trees.</dd>
+          <dt>Recommended mitigation</dt><dd>Define one import policy, align test paths or aliases with it, declare every required test dependency, and use framework-neutral mocks or the correct Vitest global. Separate tests that belong to Jest from tests that belong to Vitest until the migration is complete.</dd>
+          <dt>Implementation prompt</dt><dd>Resolve the root and inspect <code>package.json</code>, <code>vitest.config.ts</code>, <code>jest.config.js</code>, the failing test files, and the corresponding <code>cli/src</code> implementations. Use the current 12-file Vitest failure list as evidence. Preserve test intent, public module APIs, and the existing focused Jest GUI coverage. Do not add compatibility aliases that hide wrong imports or install unused packages merely to silence errors. Make the minimal path, dependency, or test-harness changes. Verify expected import failures, unexpected missing packages, and a fallback copy or mock when a framework adapter is not appropriate. Preserve lockfile and test state. Add assertions for module resolution, GUI rendering, and global cleanup. Include accessibility assertions for GUI tests and security checks against mocks crossing process boundaries. If an alias migration is high risk, describe rollback by reverting config and lockfile together. Report all files, commands, failures fixed, intentional non-changes, and remaining suite gaps.</dd>
+          <dt>Regression tests</dt><dd>Run the previously failing Vitest files and assert they load rather than fail during collection. Assert the GUI tests render and query accessible names. Assert no test references an undeclared global.</dd>
+          <dt>Additional baseline tests</dt><dd><code>npm run test:vitest</code>; <code>npm test -- --runInBand __tests__/gui/gui-components.test.ts</code>; <code>npm run lint</code>.</dd>
+          <dt>Acceptance criteria</dt><dd>All intended Vitest files collect, required dependencies are declared, Jest-only globals are removed or isolated, and import paths point to the actual source ownership without masking unresolved modules.</dd>
+          <dt>Confidence</dt><dd>High. Collection errors and missing package names came directly from the current test run.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-03">
+        <header><div class="article-kicker"><span class="issue-number">Issue 03</span><span class="kind core">Core</span><span class="priority p3">P3</span></div><h3>Mirror relink leaves broken symlink orphans</h3></header>
+        <dl class="issue-details">
+          <dt>Title</dt><dd>Mirror relink leaves broken symlink orphans</dd>
+          <dt>Kind</dt><dd><span class="tag">Core</span>Cleanup correctness</dd>
+          <dt>Priority</dt><dd>P3</dd>
+          <dt>Severity</dt><dd>High. A stale target can survive source removal and continue to influence another tool's rule loading.</dd>
+          <dt>Likelihood</dt><dd>Likely. It occurs when a tracked symlink's source disappears before unlink or relink cleanup runs.</dd>
+          <dt>Impacted area</dt><dd><code>cli/src/lib/mirror-runner.ts</code>, mirror unlink and refresh operations, coordination mirror records, and Windows copy fallback behavior.</dd>
+          <dt>Failure mode</dt><dd><code>removeTrackedTarget</code> first uses <code>fs.existsSync</code>. For a broken symlink this returns false, so the code skips <code>lstat</code> and <code>unlinkSync</code>; the dangling directory entry remains.</dd>
+          <dt>Evidence or rationale</dt><dd><ul class="evidence"><li><code>mirror-runner.ts:326-353</code> checks existence before removing a tracked target.</li><li><code>tests/mirror-idempotent.test.ts:102-115</code> removes the beta source and expects the target to disappear; the observed value was still true.</li><li>Symlink existence and target existence are distinct filesystem states, especially after source deletion.</li></ul></dd>
+          <dt>Why this matters</dt><dd>Users can believe a module was unlinked while downstream tools continue to see a broken rule entry. Repeated syncs may produce confusing errors and leave coordination metadata out of step with disk state.</dd>
+          <dt>Recommended mitigation</dt><dd>Use <code>lstat</code> or a no-follow existence check for tracked paths, remove files and symlinks based on directory-entry presence, and test both live and broken links on platforms with copy fallback.</dd>
+          <dt>Implementation prompt</dt><dd>Resolve the repository root and inspect <code>cli/src/lib/mirror-runner.ts</code>, <code>tests/mirror-idempotent.test.ts</code>, coordination mirror schemas, and the unlink caller. Base the change on the reproduced orphan assertion. Preserve live symlink behavior, Windows copy fallback, hand-edited target protection, and coordination cleanup. Do not broaden deletion to untracked files or recursively remove a parent directory. Implement the smallest no-follow removal fix. Test expected missing targets, unexpected permission failures, and a fallback copy mode. Preserve all unrelated mirror state. Add assertions for broken symlink removal, live link removal, copied target removal, and hand-edited target retention. Include security checks against deleting outside the resolved project root, accessibility checks for actionable errors, and recovery guidance. Because cleanup is destructive, describe rollback by restoring the tracked mirror record or recreating the source target from the recorded source path. Report commands, file paths, test outputs, and non-changes.</dd>
+          <dt>Regression tests</dt><dd>Create a tracked symlink, remove its source, run cleanup, and assert the directory entry is gone with <code>lstat</code>. Repeat for a copied target and assert an edited target is preserved with a warning.</dd>
+          <dt>Additional baseline tests</dt><dd><code>npm run test:vitest -- tests/mirror-idempotent.test.ts</code>; mirror unit tests; <code>npm run lint</code>; <code>npm run build</code>.</dd>
+          <dt>Acceptance criteria</dt><dd>Broken tracked symlinks are removed, live targets still clean up, copy fallback remains supported, and untracked or hand-edited files are never deleted silently.</dd>
+          <dt>Confidence</dt><dd>High. The code path and failing expectation align exactly.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-04">
+        <header><div class="article-kicker"><span class="issue-number">Issue 04</span><span class="kind core">Core</span><span class="priority p4">P4</span></div><h3>Single-file mirrors overwrite drifted targets</h3></header>
+        <dl class="issue-details">
+          <dt>Title</dt><dd>Single-file mirrors overwrite drifted targets</dd>
+          <dt>Kind</dt><dd><span class="tag">Core</span>Data preservation</dd>
+          <dt>Priority</dt><dd>P4</dd>
+          <dt>Severity</dt><dd>High. A user-editable target can be replaced without an explicit force decision, destroying local instructions.</dd>
+          <dt>Likelihood</dt><dd>Likely. Any pre-existing single-file destination is unlinked before generated content is written.</dd>
+          <dt>Impacted area</dt><dd><code>cli/src/lib/mirror-runner.ts</code>, per-tool files such as <code>CLAUDE.md</code> and <code>.windsurfrules</code>, and repeated <code>augx link --mirror</code> runs.</dd>
+          <dt>Failure mode</dt><dd>The single-file branch calls <code>writeGeneratedFile</code>, which unconditionally unlinks the destination before writing. The file-level <code>safeOverwrite</code> option is defined but is not used to protect this path.</dd>
+          <dt>Evidence or rationale</dt><dd><ul class="evidence"><li><code>mirror-runner.ts:262-273</code> routes single-file mirrors through generated-file writing.</li><li><code>mirror-runner.ts:364-374</code> removes an existing target before writing new content.</li><li><code>export.ts:293-309</code> has a separate drift refusal model, so the repository already recognizes this safety requirement elsewhere.</li></ul></dd>
+          <dt>Why this matters</dt><dd>Cross-platform materialization is supposed to make rule distribution safer, not silently erase project-specific guidance. The damage may be noticed only after another agent or tool loads the overwritten file.</dd>
+          <dt>Recommended mitigation</dt><dd>Compare the existing file with the managed marker and expected generated content before writing. Refuse on drift unless an explicit force option is present, and preserve a recoverable backup when force is used.</dd>
+          <dt>Implementation prompt</dt><dd>Resolve the root and inspect the mirror runner, export drift logic, coordination metadata, and tests for single-file targets. Use the unconditional unlink as evidence. Preserve generated marker format, idempotent byte output, symlink and copy modes, and existing CLI options. Do not make every project file managed by default. Implement the minimum shared drift decision or a narrow single-file guard. Cover expected unchanged writes, unexpected permission errors, and fallback copy behavior. Preserve state by refusing or backing up before force overwrite. Add assertions for identical content, managed drift, unmarked user content, force mode, and backup recovery. Include security checks for path containment, accessibility checks for warnings and errors, and a rollback plan for any destructive force operation. Report exact commands, changed files, test results, non-changes, and remaining compatibility risk.</dd>
+          <dt>Regression tests</dt><dd>Assert unchanged reruns are byte-identical, drifted files refuse without force, force writes only after an explicit flag, and a recoverable backup or restoration path exists.</dd>
+          <dt>Additional baseline tests</dt><dd>Export drift tests; mirror idempotence tests; <code>npm run lint</code>; <code>npm run build</code>.</dd>
+          <dt>Acceptance criteria</dt><dd>No unforced mirror operation deletes or overwrites drifted user content, and force behavior is explicit, tested, documented, and recoverable.</dd>
+          <dt>Confidence</dt><dd>High. The destructive write sequence is visible and contrasts with an existing safe export path.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-05">
+        <header><div class="article-kicker"><span class="issue-number">Issue 05</span><span class="kind core">Core</span><span class="priority p5">P5</span></div><h3>Module lookup can escape the modules root</h3></header>
+        <dl class="issue-details">
+          <dt>Title</dt><dd>Module lookup can escape the modules root</dd>
+          <dt>Kind</dt><dd><span class="tag">Core</span>Path boundary</dd>
+          <dt>Priority</dt><dd>P5</dd>
+          <dt>Severity</dt><dd>High if module names can be supplied by an untrusted caller or repository metadata; an escaped path can cause unintended files to be loaded or linked.</dd>
+          <dt>Likelihood</dt><dd>Possible under a testable assumption: a caller can pass a slash-containing name or traversal segment to a CLI command.</dd>
+          <dt>Impacted area</dt><dd><code>cli/src/utils/module-system.ts</code>, module resolution, <code>show</code>, <code>link</code>, and any command that persists a resolved module path.</dd>
+          <dt>Failure mode</dt><dd>When a name contains a slash, <code>module-system.ts:779-801</code> joins it to the modules directory and loads the candidate without proving the canonical path remains inside that root.</dd>
+          <dt>Evidence or rationale</dt><dd><ul class="evidence"><li><code>loadModule</code> reads metadata and rules from a supplied directory.</li><li>Slash-containing names are normalized into a path instead of being constrained to a safe module identifier or contained canonical path.</li><li><code>link.ts:108-128</code> records the resolved module after lookup, increasing the impact if resolution escapes.</li></ul></dd>
+          <dt>Why this matters</dt><dd>Module lookup is a boundary between repository content and project state. A path escape can expose local configuration or cause the linker to materialize content from outside the extension catalog.</dd>
+          <dt>Recommended mitigation</dt><dd>Define whether nested module IDs are supported. If they are, resolve the candidate and enforce canonical containment under the modules root; otherwise reject traversal, absolute paths, and separators with a clear error.</dd>
+          <dt>Implementation prompt</dt><dd>Resolve the repository root and inspect <code>module-system.ts</code>, <code>module-resolver.ts</code>, <code>link.ts</code>, module naming rules, and all callers. Use a traversal test as the evidence to validate. Preserve valid nested module IDs if the catalog requires them, normal metadata loading, and existing not-found behavior. Do not sanitize by silently changing the requested module name. Implement one containment helper and use it at the lookup boundary. Cover expected valid names, unexpected separators, symlinks, permission errors, and a fallback copy path where linking follows resolution. Preserve coordination state on rejection. Add assertions that canonical paths stay inside the root and that no outside file is read or linked. Include security review, readable error and accessibility messaging, and rollback for any already-materialized unsafe target. Report root, symbols, non-changes, commands, tests, and residual trust assumptions.</dd>
+          <dt>Regression tests</dt><dd>Assert valid catalog names resolve, absolute paths and <code>..</code> traversal fail, symlinked escapes are rejected or explicitly supported by policy, and link state is unchanged on failure.</dd>
+          <dt>Additional baseline tests</dt><dd>Module discovery and resolver tests; link tests; <code>npm run lint</code>; <code>npm run build</code>.</dd>
+          <dt>Acceptance criteria</dt><dd>Every resolved module is canonical and contained under the intended catalog root, rejected inputs produce no state change, and supported nested names remain functional.</dd>
+          <dt>Confidence</dt><dd>Medium-high. The path join is direct, while exploitability depends on caller trust and filesystem symlink policy.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-06">
+        <header><div class="article-kicker"><span class="issue-number">Issue 06</span><span class="kind core">Core</span><span class="priority p6">P6</span></div><h3>Show file inspection can read outside a module</h3></header>
+        <dl class="issue-details">
+          <dt>Title</dt><dd>Show file inspection can read outside a module</dd>
+          <dt>Kind</dt><dd><span class="tag">Core</span>Read boundary</dd>
+          <dt>Priority</dt><dd>P6</dd>
+          <dt>Severity</dt><dd>High when a file path is user-controlled. The command can disclose arbitrary readable local files or follow an escape from the module directory.</dd>
+          <dt>Likelihood</dt><dd>Possible. The command explicitly accepts absolute paths and parent-relative file paths.</dd>
+          <dt>Impacted area</dt><dd><code>cli/src/commands/show.ts:686-703</code>, module file display, redaction behavior, and CLI diagnostics.</dd>
+          <dt>Failure mode</dt><dd>The command builds an absolute path when the requested file is absolute or joins a relative file path to the module path, then checks existence and reads it without enforcing containment in the module directory.</dd>
+          <dt>Evidence or rationale</dt><dd><ul class="evidence"><li>The path selection accepts <code>path.isAbsolute(filePath)</code>.</li><li>Relative paths are joined directly and only an existence check follows.</li><li>Later secure output redaction can reduce displayed secrets but does not prevent the file from being selected or read.</li></ul></dd>
+          <dt>Why this matters</dt><dd>A command advertised as showing module content should not become a general local-file reader. Redaction is not a substitute for authorization and can be incomplete for unknown secret formats.</dd>
+          <dt>Recommended mitigation</dt><dd>Restrict file requests to files under the resolved module directory, reject absolute and traversal paths by default, and make any explicit diagnostic escape mode opt-in, clearly named, and separately audited.</dd>
+          <dt>Implementation prompt</dt><dd>Resolve the root and inspect <code>show.ts</code>, its argument parser, module path construction, redaction code, and tests. Use the absolute-path and parent-relative branches as evidence. Preserve normal module display, supported nested rules files, secure redaction, and clear not-found messages. Do not rely on string prefix checks or silently normalize an unsafe path. Implement the smallest canonical containment guard. Cover expected files, missing files, separators, symlink escapes, permission errors, redaction failures, and a fallback copy only if content is intentionally materialized. Preserve no-read behavior on rejection. Add assertions that outside files are never opened, errors do not echo sensitive paths unnecessarily, and output remains readable by assistive tools. Include security, accessibility, recovery, and rollback guidance if any compatibility flag is added. Report changed symbols, test commands, assertions, non-changes, and remaining assumptions.</dd>
+          <dt>Regression tests</dt><dd>Assert an in-module rule file is shown, absolute paths are rejected, <code>../</code> is rejected, a symlink escape is rejected, and secure mode still redacts permitted content.</dd>
+          <dt>Additional baseline tests</dt><dd><code>show</code> command tests; module resolver tests; <code>npm run lint</code>; <code>npm run build</code>.</dd>
+          <dt>Acceptance criteria</dt><dd><code>show</code> cannot read outside the selected module, ordinary valid files still display, and redaction remains a secondary defense rather than the boundary.</dd>
+          <dt>Confidence</dt><dd>High for the path behavior; exploitability depends on how the CLI is exposed to untrusted callers.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-07">
+        <header><div class="article-kicker"><span class="issue-number">Issue 07</span><span class="kind core">Core</span><span class="priority p7">P7</span></div><h3>MCP JSON listing can disclose environment values</h3></header>
+        <dl class="issue-details">
+          <dt>Title</dt><dd>MCP JSON listing can disclose environment values</dd>
+          <dt>Kind</dt><dd><span class="tag">Core</span>Secret handling</dd>
+          <dt>Priority</dt><dd>P7</dd>
+          <dt>Severity</dt><dd>High if MCP environment maps contain tokens, credentials, or private endpoints. The JSON branch prints configured values as data.</dd>
+          <dt>Likelihood</dt><dd>Possible under the normal assumption that users store secrets in MCP environment configuration.</dd>
+          <dt>Impacted area</dt><dd><code>cli/src/utils/mcp-integration.ts</code>, <code>cli/src/commands/mcp.ts</code>, <code>mcp list --json</code>, logs, and copied diagnostics.</dd>
+          <dt>Failure mode</dt><dd>The JSON listing serializes full MCP server configs, including the optional environment object accepted by <code>mcp add</code>, instead of redacting secret-like values or omitting the map.</dd>
+          <dt>Evidence or rationale</dt><dd><ul class="evidence"><li><code>MCPServerConfig.env</code> is a string map.</li><li><code>mcp.ts:29-41</code> prints <code>JSON.stringify(configs, null, 2)</code> for JSON output.</li><li><code>mcpAddCommand:70-86</code> accepts environment JSON, and the checked-in VS Code MCP config demonstrates the shape is used in this repository.</li></ul></dd>
+          <dt>Why this matters</dt><dd>JSON output is often redirected into issue reports, CI artifacts, or agent context. A convenience diagnostic can become a credential disclosure path without any explicit request to reveal values.</dd>
+          <dt>Recommended mitigation</dt><dd>Default to omitting environment values from list output, or redact by key and value with a documented allowlist for non-secret metadata. Offer an explicit, noisy local-only reveal mode only if there is a strong use case.</dd>
+          <dt>Implementation prompt</dt><dd>Resolve the root and inspect the MCP config type, list command, add command, config loaders, and existing output tests. Treat the current JSON serialization as evidence and document the assumption that env maps may contain secrets. Preserve server names, transport metadata, ordering, stable JSON shape where possible, and execution behavior. Do not mutate the stored config or use an unreliable key-name-only secret detector as the only defense. Implement the smallest output redaction or omission policy, plus a fallback copy of non-secret metadata. Cover expected JSON and human output, unexpected malformed values, and permission errors. Preserve config state. Add assertions that token-shaped values do not appear in stdout or stderr, while non-sensitive fields remain useful. Include security, accessibility for clear redaction labels, recovery, and rollback for any output schema change. Report exact files, commands, tests, non-changes, and compatibility notes.</dd>
+          <dt>Regression tests</dt><dd>Seed an MCP config with token-like and ordinary environment values, run JSON and human listing, and assert secret values are absent while server identity and transport remain present.</dd>
+          <dt>Additional baseline tests</dt><dd>MCP integration and command tests; <code>npm run lint</code>; <code>npm run build</code>.</dd>
+          <dt>Acceptance criteria</dt><dd>Default list output never prints configured secret values, JSON remains valid and useful, and the persisted MCP config is unchanged.</dd>
+          <dt>Confidence</dt><dd>High for disclosure in JSON output; actual secret presence is an environment-dependent assumption.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-08">
+        <header><div class="article-kicker"><span class="issue-number">Issue 08</span><span class="kind core">Core</span><span class="priority p8">P8</span></div><h3>MCP child processes have no timeout or output budget</h3></header>
+        <dl class="issue-details">
+          <dt>Title</dt><dd>MCP child processes have no timeout or output budget</dd>
+          <dt>Kind</dt><dd><span class="tag">Core</span>Availability boundary</dd>
+          <dt>Priority</dt><dd>P8</dd>
+          <dt>Severity</dt><dd>High. A hung or noisy MCP server can block the CLI, exhaust memory, or make an agent workflow appear frozen.</dd>
+          <dt>Likelihood</dt><dd>Likely. Child processes are external programs and the current wrapper waits for exit without a deadline or bounded buffers.</dd>
+          <dt>Impacted area</dt><dd><code>cli/src/utils/mcp-integration.ts</code>, MCP list and execution commands, agent integrations, and CI processes.</dd>
+          <dt>Failure mode</dt><dd>The wrapper spawns a process, concatenates stdout and stderr without a size cap, and settles only on exit or spawn error. There is no timeout, abort signal, kill escalation, or truncation policy.</dd>
+          <dt>Evidence or rationale</dt><dd><ul class="evidence"><li>Process execution spans <code>mcp-integration.ts:145-217</code> and <code>309-382</code>.</li><li>Current command integration tests include timeouts and temporary-directory cleanup errors, showing that process lifecycle is already fragile.</li><li>External MCP commands are not controlled by the CLI and may hang or produce unbounded output.</li></ul></dd>
+          <dt>Why this matters</dt><dd>Reliability failures become resource failures. An agent can lose an entire task turn because one server never exits, and a malicious or misconfigured server can turn diagnostics into a denial of service.</dd>
+          <dt>Recommended mitigation</dt><dd>Add configurable but bounded timeouts, output limits with explicit truncation markers, abort and kill escalation, and cleanup on every settlement path. Keep exit code and signal information in the error.</dd>
+          <dt>Implementation prompt</dt><dd>Resolve the root and inspect MCP process helpers, callers, config schema, tests, and command integration fixtures. Use the no-timeout and unbounded append behavior as evidence. Preserve stdio protocol framing, normal successful responses, signal reporting, and user-configured server arguments. Do not introduce a silent infinite timeout or discard diagnostic context. Implement the smallest lifecycle wrapper with defaults, explicit overrides, and a fallback copy of bounded output. Cover expected success, timeout, kill failure, spawn failure, malformed output, and oversized stdout or stderr. Preserve config and child cleanup state. Add assertions for bounded wall time, bounded memory, process termination, stable errors, and no orphan processes. Include security, accessibility for actionable timeout messages, recovery, and rollback for default changes. Report files, symbols, commands, assertions, non-changes, and any platform differences.</dd>
+          <dt>Regression tests</dt><dd>Run a fake server that sleeps and assert timeout plus termination. Run a fake server that emits more than the limit and assert truncation. Assert normal JSON response and nonzero exit diagnostics remain intact.</dd>
+          <dt>Additional baseline tests</dt><dd>MCP integration tests; command execution tests; <code>npm run lint</code>; <code>npm run build</code>.</dd>
+          <dt>Acceptance criteria</dt><dd>No MCP invocation waits forever, output is bounded, child processes are cleaned up on success and failure, and normal responses remain compatible.</dd>
+          <dt>Confidence</dt><dd>High. The missing controls are visible in the process lifecycle implementation.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-09">
+        <header><div class="article-kicker"><span class="issue-number">Issue 09</span><span class="kind core">Core</span><span class="priority p9">P9</span></div><h3>Skill execution enables shell interpretation</h3></header>
+        <dl class="issue-details">
+          <dt>Title</dt><dd>Skill execution enables shell interpretation</dd>
+          <dt>Kind</dt><dd><span class="tag">Core</span>Command execution boundary</dd>
+          <dt>Priority</dt><dd>P9</dd>
+          <dt>Severity</dt><dd>High under a repository-content trust model. Shell metacharacters in skill metadata can change execution from one command to arbitrary shell behavior.</dd>
+          <dt>Likelihood</dt><dd>Possible. The assumption is testable by placing a crafted CLI command in a skill metadata file and invoking the run command.</dd>
+          <dt>Impacted area</dt><dd><code>cli/src/commands/skill.ts:204-240</code>, skill discovery and metadata parsing, and the <code>skill run</code> command.</dd>
+          <dt>Failure mode</dt><dd>The command from <code>skill.metadata.cliCommand</code> is passed to <code>spawn</code> with <code>shell: true</code>. Arguments and metadata are therefore interpreted by a shell rather than executed as a fixed program plus argv.</dd>
+          <dt>Evidence or rationale</dt><dd><ul class="evidence"><li>The source explicitly enables <code>shell: true</code> with inherited stdio.</li><li>The command comes from skill metadata loaded from repository content, not a hardcoded allowlist.</li><li>Skill metadata is a natural place for a contributor or fetched module to add command text.</li></ul></dd>
+          <dt>Why this matters</dt><dd>Installing or linking a module can expand the set of metadata that a user later executes. The trust boundary is easy to misunderstand because the command looks like ordinary skill configuration.</dd>
+          <dt>Recommended mitigation</dt><dd>Prefer a structured executable and argument array with shell disabled. If shell syntax is a deliberate feature, require an explicit opt-in, show the exact command, validate the source, and document that it is code execution.</dd>
+          <dt>Implementation prompt</dt><dd>Resolve the root and inspect skill metadata schemas, <code>skill.ts</code>, module loading, CLI documentation, and tests. Use the shell-enabled spawn call as evidence and state the trust assumption. Preserve supported command discovery, inherited interactive behavior where needed, and useful exit reporting. Do not merely escape a command string while keeping shell interpretation. Implement the smallest structured execution path, with a documented fallback for legacy shell commands if compatibility requires it. Cover expected argv execution, unexpected shell metacharacters, missing executables, nonzero exits, and cleanup. Preserve project files and environment state. Add assertions that metacharacters are arguments rather than operators, that environment exposure is intentional, and that error output remains readable. Include security, accessibility, recovery, and a rollback plan for a high-risk behavior change. Report all commands, test assertions, non-changes, and legacy compatibility decisions.</dd>
+          <dt>Regression tests</dt><dd>Use a fixture command that records argv and assert semicolons, pipes, and redirects are not interpreted. Assert missing commands and nonzero exits return bounded, actionable errors.</dd>
+          <dt>Additional baseline tests</dt><dd>Skill system tests; CLI command tests; <code>npm run lint</code>; <code>npm run build</code>.</dd>
+          <dt>Acceptance criteria</dt><dd>Default skill execution does not invoke a shell, legacy behavior is explicit if retained, and crafted metadata cannot execute a second command silently.</dd>
+          <dt>Confidence</dt><dd>High for the shell boundary; exploitability depends on whether untrusted metadata reaches skill execution.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-10">
+        <header><div class="article-kicker"><span class="issue-number">Issue 10</span><span class="kind core">Core</span><span class="priority p10">P10</span></div><h3>Malformed module metadata silently disappears</h3></header>
+        <dl class="issue-details">
+          <dt>Title</dt><dd>Malformed module metadata silently disappears</dd>
+          <dt>Kind</dt><dd><span class="tag">Core</span>Diagnostics and recovery</dd>
+          <dt>Priority</dt><dd>P10</dd>
+          <dt>Severity</dt><dd>Medium. A bad module can vanish from discovery, making operators diagnose a missing installation instead of a malformed file.</dd>
+          <dt>Likelihood</dt><dd>Likely. <code>loadModule</code> catches broadly and returns null, while discovery filters null results without recording the reason.</dd>
+          <dt>Impacted area</dt><dd><code>cli/src/utils/module-system.ts:229-294</code>, <code>discoverModules</code>, list and search commands, and module author feedback.</dd>
+          <dt>Failure mode</dt><dd>Read, parse, validation, or rule-loading errors are collapsed into a null module. Discovery silently excludes that module, while another metadata extraction helper has a separate fallback policy.</dd>
+          <dt>Evidence or rationale</dt><dd><ul class="evidence"><li>The broad catch in <code>loadModule</code> returns null without a diagnostic record.</li><li><code>discoverModules:684-706</code> filters null results.</li><li><code>extractModuleMetadata:321-333</code> handles failures differently, so operators can see inconsistent behavior between commands.</li></ul></dd>
+          <dt>Why this matters</dt><dd>Silent exclusion is a reliability failure because it removes the only clue needed to repair a catalog. It also makes search and list output look authoritative when it is incomplete.</dd>
+          <dt>Recommended mitigation</dt><dd>Distinguish not found, malformed, unreadable, and invalid module states. Keep successful discovery behavior stable, but collect structured warnings with module path and safe error category; expose them in verbose or diagnostic output.</dd>
+          <dt>Implementation prompt</dt><dd>Resolve the root and inspect module loading, discovery, metadata extraction, list/search commands, and tests. Use the broad null return and inconsistent fallback as evidence. Preserve the public successful module shape, quiet default output where required, and no leakage of full file contents. Do not turn every optional malformed example into a fatal process exit. Implement a small typed result or diagnostic collector with expected, unexpected, and fallback copy behavior for unreadable metadata. Preserve filesystem and coordination state. Add assertions for valid, missing, malformed JSON, invalid schema, permission failure, and mixed catalogs. Include security checks for safe paths, accessibility for clear warnings, recovery guidance, and rollback if output schema changes. Report root, symbols, tests, commands, non-changes, and compatibility impact.</dd>
+          <dt>Regression tests</dt><dd>Assert valid modules still list normally, malformed modules produce a diagnostic in verbose mode, default output remains stable, and one malformed module does not hide valid siblings.</dd>
+          <dt>Additional baseline tests</dt><dd>Module discovery, list, search, and metadata tests; <code>npm run lint</code>; <code>npm run build</code>.</dd>
+          <dt>Acceptance criteria</dt><dd>Malformed modules are distinguishable from absent modules, valid modules remain discoverable, and diagnostics are safe, deterministic, and actionable.</dd>
+          <dt>Confidence</dt><dd>High. The null filtering and broad catch are explicit.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-11">
+        <header><div class="article-kicker"><span class="issue-number">Issue 11</span><span class="kind additional">Additional</span><span class="priority p11">P11</span></div><h3>Multi-target export can leave partial output</h3></header>
+        <dl class="issue-details">
+          <dt>Title</dt><dd>Multi-target export can leave partial output</dd>
+          <dt>Kind</dt><dd><span class="tag">Additional</span>Atomicity</dd>
+          <dt>Priority</dt><dd>P11</dd>
+          <dt>Severity</dt><dd>Medium. A failed target can leave earlier target files updated, creating a mixed-generation rule surface.</dd>
+          <dt>Likelihood</dt><dd>Possible. One target can fail due to permissions, drift, or an unavailable path after another target has already been written.</dd>
+          <dt>Impacted area</dt><dd><code>cli/src/commands/export.ts:233-335</code>, target adapters, generated files, and project recovery after failed export.</dd>
+          <dt>Failure mode</dt><dd>Export iterates adapters and writes each target directly. It records an I/O error but does not stage all outputs or roll back targets already written.</dd>
+          <dt>Evidence or rationale</dt><dd><ul class="evidence"><li><code>writeFileLF:128-134</code> writes directly to the final path.</li><li>The multi-target loop continues per adapter and reports errors after work has already occurred.</li><li>Targets include different directories and drift policies, making partial success observable to downstream tools.</li></ul></dd>
+          <dt>Why this matters</dt><dd>Users can rerun export and get a different combination of guidance files. A partial update is especially difficult to diagnose when only one target is used by the active coding tool.</dd>
+          <dt>Recommended mitigation</dt><dd>Stage generated content first, validate all targets and drift decisions, then commit atomically per file with a manifest. If full transactionality is not feasible across files, provide an explicit partial-success report and a rollback of files changed during the invocation.</dd>
+          <dt>Implementation prompt</dt><dd>Resolve the root and inspect export orchestration, adapters, file writer, drift checks, coordination metadata, and tests. Use the direct per-adapter write order as evidence. Preserve target-specific formats, unchanged byte output, force semantics, and ignored paths. Do not rewrite the adapter architecture unnecessarily. Implement the smallest staging or journaled rollback approach, with fallback copy and expected, unexpected, and permission-error paths. Preserve existing user files and record state before mutation. Add assertions for all-success, first-target failure, later-target failure, drift refusal, force, and retry recovery. Include security and path containment checks, accessibility of partial-failure reporting, recovery instructions, and a rollback plan for the high-risk write sequence. Report changed symbols, commands, test results, non-changes, and remaining atomicity limits.</dd>
+          <dt>Regression tests</dt><dd>Inject a failure in target two and assert target one is unchanged or restored. Assert successful all-target export remains byte-identical and retry after repair converges.</dd>
+          <dt>Additional baseline tests</dt><dd>Export command tests; drift tests; <code>npm run lint</code>; <code>npm run build</code>.</dd>
+          <dt>Acceptance criteria</dt><dd>Failed multi-target export cannot silently leave a mixed state, and any unavoidable partial success is explicit, recoverable, and tested.</dd>
+          <dt>Confidence</dt><dd>Medium-high. The write ordering is clear; exact adapter failure behavior varies by target.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-12">
+        <header><div class="article-kicker"><span class="issue-number">Issue 12</span><span class="kind additional">Additional</span><span class="priority p12">P12</span></div><h3>Submodule discovery tests depend on absent fixtures</h3></header>
+        <dl class="issue-details">
+          <dt>Title</dt><dd>Submodule discovery tests depend on absent fixtures</dd>
+          <dt>Kind</dt><dd><span class="tag">Additional</span>Test fixture integrity</dd>
+          <dt>Priority</dt><dd>P12</dd>
+          <dt>Severity</dt><dd>Medium. The suite fails for a repository layout mismatch rather than a behavior regression, weakening signal and wasting triage time.</dd>
+          <dt>Likelihood</dt><dd>Almost certain. The current submodule suite has five failures because expected screenplay paths are not present in the checkout.</dd>
+          <dt>Impacted area</dt><dd><code>tests/unit/modules/submodule-discovery.test.ts</code>, module discovery fixtures, repository catalog ownership, and CI maintenance.</dd>
+          <dt>Failure mode</dt><dd>Tests hardcode <code>augment-extensions/writing-standards/screenplay</code> and child paths, but the current top-level catalog contains coding-standards, collections, domain-rules, examples, skills, visual-design, and workflows instead.</dd>
+          <dt>Evidence or rationale</dt><dd><ul class="evidence"><li>The failing test file references absent screenplay modules at lines 21-101.</li><li>Current Vitest output reports five failures in this suite.</li><li>The repository directory inventory does not contain the expected <code>writing-standards</code> tree.</li></ul></dd>
+          <dt>Why this matters</dt><dd>False red tests encourage broad exclusions and make it unclear whether discovery, fixture content, or catalog structure is authoritative.</dd>
+          <dt>Recommended mitigation</dt><dd>Choose one source of truth: update tests to current fixtures, add an explicit fixture tree under a test-owned directory, or restore the catalog only if the product contract still requires it. Keep production discovery tests independent of accidental repository contents.</dd>
+          <dt>Implementation prompt</dt><dd>Resolve the root and inspect the failing test, module discovery implementation, current catalog directories, test setup, and package scripts. Use the absent-path failures as evidence. Preserve the intended nested discovery contract and avoid changing production semantics merely to satisfy stale paths. Implement the smallest fixture or expectation correction, with expected missing-fixture errors and a fallback copy of fixture data only if test isolation requires it. Preserve repository modules and user state. Add assertions for nested discovery, duplicate names, empty directories, malformed modules, and no fixture leakage into production. Include security and accessibility checks where paths are displayed, recovery guidance, and rollback if moving fixtures affects consumers. Report root, files, evidence, non-changes, commands, assertions, and remaining uncertainty.</dd>
+          <dt>Regression tests</dt><dd>Run the submodule suite against an explicit fixture tree and assert expected child ordering, missing child handling, and no dependency on absent production directories.</dd>
+          <dt>Additional baseline tests</dt><dd>All module discovery tests; <code>npm run test:vitest</code>; <code>npm run lint</code>.</dd>
+          <dt>Acceptance criteria</dt><dd>The suite passes against an intentional fixture or current catalog contract, and a future catalog rename produces a focused, understandable failure.</dd>
+          <dt>Confidence</dt><dd>High. The test paths and current directory inventory disagree directly.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-13">
+        <header><div class="article-kicker"><span class="issue-number">Issue 13</span><span class="kind additional">Additional</span><span class="priority p13">P13</span></div><h3>Self-update installs latest without pin or rollback</h3></header>
+        <dl class="issue-details">
+          <dt>Title</dt><dd>Self-update installs latest without pin or rollback</dd>
+          <dt>Kind</dt><dd><span class="tag">Additional</span>Lifecycle reliability</dd>
+          <dt>Priority</dt><dd>P13</dd>
+          <dt>Severity</dt><dd>Medium to high. A registry or packaging regression can replace a working global CLI with an incompatible version and leave the user without a recovery path.</dd>
+          <dt>Likelihood</dt><dd>Possible whenever the latest published package changes, the registry is unavailable, or installation succeeds only partially.</dd>
+          <dt>Impacted area</dt><dd><code>cli/src/commands/update.ts:106-151</code>, global npm installation, version checks, and operator recovery.</dd>
+          <dt>Failure mode</dt><dd>The command queries the latest registry version and runs <code>npm install -g @mytechtoday/augment-extensions@latest</code> without pinning the selected version, checking post-install health, or retaining a rollback package.</dd>
+          <dt>Evidence or rationale</dt><dd><ul class="evidence"><li>The update command explicitly targets <code>latest</code>.</li><li>There is no transaction or health check around the global install in the inspected path.</li><li>Registry state is external and can change independently of the local CLI invocation.</li></ul></dd>
+          <dt>Why this matters</dt><dd>Self-update is a high-trust operation. The command can change the executable that users depend on before they can inspect what changed or revert it.</dd>
+          <dt>Recommended mitigation</dt><dd>Resolve an exact version, display the plan, install the exact package, verify the resulting executable with a health check, and preserve the prior version or an explicit reinstall command. Fail closed when the registry or verification is unavailable.</dd>
+          <dt>Implementation prompt</dt><dd>Resolve the root and inspect the update command, package identity, version parsing, npm invocation, output tests, and documentation. Use the unpinned <code>latest</code> install as evidence. Preserve current version comparison, dry-run behavior if present, global install intent, and clear exit codes. Do not silently downgrade or mutate project dependencies. Implement the smallest exact-version and post-install verification flow, with fallback copy or reinstall instructions when package retrieval fails. Cover expected up-to-date, available update, registry failure, install failure, verification failure, and rollback. Preserve the prior executable state until the new install is verified where npm permits. Add assertions for exact package spec, bounded output, and actionable recovery. Include security, accessibility, recovery, and a rollback plan because this is high risk. Report files, symbols, commands, tests, non-changes, and package-manager assumptions.</dd>
+          <dt>Regression tests</dt><dd>Mock registry and npm calls, assert the selected exact version is installed, verification runs, failures retain a recovery instruction, and up-to-date state performs no mutation.</dd>
+          <dt>Additional baseline tests</dt><dd>Update command tests; <code>npm run lint</code>; <code>npm run build</code>; a manual dry-run in an isolated npm prefix if available.</dd>
+          <dt>Acceptance criteria</dt><dd>No update installs an unreviewed moving tag, successful installs are verified, failed installs provide a tested recovery path, and up-to-date users are not mutated.</dd>
+          <dt>Confidence</dt><dd>Medium-high. The moving tag and absence of rollback are visible, while npm's own install atomicity varies by environment.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-14">
+        <header><div class="article-kicker"><span class="issue-number">Issue 14</span><span class="kind additional">Additional</span><span class="priority p14">P14</span></div><h3>Self-remove commits primary state before cleanup</h3></header>
+        <dl class="issue-details">
+          <dt>Title</dt><dd>Self-remove commits primary state before cleanup</dd>
+          <dt>Kind</dt><dd><span class="tag">Additional</span>Uninstall consistency</dd>
+          <dt>Priority</dt><dd>P14</dd>
+          <dt>Severity</dt><dd>Medium. An interrupted uninstall can report success while leaving secondary integrations, logs, or rule materializations behind.</dd>
+          <dt>Likelihood</dt><dd>Possible during permission errors, locked files, or interrupted cleanup.</dd>
+          <dt>Impacted area</dt><dd><code>cli/src/commands/self-remove.ts:158-203</code>, <code>.augment/extensions.json</code>, VS Code integration cleanup, and uninstall logs.</dd>
+          <dt>Failure mode</dt><dd>The command writes an empty primary extension config before later VS Code cleanup and log operations. Cleanup errors are handled locally, but there is no transaction marker or recovery record for the already-written primary state.</dd>
+          <dt>Evidence or rationale</dt><dd><ul class="evidence"><li>Primary state is written at lines 158-168 before secondary cleanup at lines 170-203.</li><li>The later cleanup catches errors independently, so the command can finish with mixed state.</li><li>Removing the source of truth first makes retry and diagnosis harder.</li></ul></dd>
+          <dt>Why this matters</dt><dd>Uninstall is expected to leave a coherent project. Mixed state can cause stale rules to load, make reinstall behavior surprising, or erase the information needed to complete cleanup.</dd>
+          <dt>Recommended mitigation</dt><dd>Use a staged uninstall plan with a marker or journal, perform reversible cleanup first where possible, commit the primary state last, and expose incomplete cleanup with a retry command and clear status.</dd>
+          <dt>Implementation prompt</dt><dd>Resolve the root and inspect self-remove, config persistence, VS Code cleanup, logging, mirror records, and tests. Use the write ordering as evidence. Preserve explicit user confirmation, supported integrations, idempotent retries, and data that must not be deleted. Do not broaden uninstall to unrelated files. Implement the smallest journal or staged state machine, with expected permissions, unexpected interruption, and fallback copy of the pre-remove config. Preserve state until each irreversible step is acknowledged. Add assertions for success, partial failure, retry, cancellation, and already-removed state. Include security, accessibility for confirmation and errors, recovery instructions, and a rollback plan for high-risk cleanup. Report root, symbols, files, commands, tests, non-changes, and remaining cleanup limitations.</dd>
+          <dt>Regression tests</dt><dd>Inject failure after secondary cleanup begins and assert the marker or config makes retry possible. Assert successful removal is idempotent and does not delete unrelated project files.</dd>
+          <dt>Additional baseline tests</dt><dd>Self-remove command tests; config persistence tests; <code>npm run lint</code>; <code>npm run build</code>.</dd>
+          <dt>Acceptance criteria</dt><dd>Interrupted removal is detectable and retryable, primary state is not silently committed ahead of cleanup, and successful removal remains idempotent and scoped.</dd>
+          <dt>Confidence</dt><dd>Medium-high. Ordering is explicit; exact cleanup failure frequency is environment-dependent.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-15">
+        <header><div class="article-kicker"><span class="issue-number">Issue 15</span><span class="kind additional">Additional</span><span class="priority p15">P15</span></div><h3>Jest, Vitest, and standalone harness disagree</h3></header>
+        <dl class="issue-details">
+          <dt>Title</dt><dd>Jest, Vitest, and standalone harness disagree</dd>
+          <dt>Kind</dt><dd><span class="tag">Additional</span>Validation architecture</dd>
+          <dt>Priority</dt><dd>P15</dd>
+          <dt>Severity</dt><dd>Medium. Different runners exercise different file sets, globals, paths, and process environments, so a green command does not describe one coherent quality gate.</dd>
+          <dt>Likelihood</dt><dd>Likely. The repository has separate scripts and configurations, a hardcoded standalone loader, and a Vitest 4 deprecation warning.</dd>
+          <dt>Impacted area</dt><dd><code>package.json</code>, <code>jest.config.js</code>, <code>vitest.config.ts</code>, <code>test-all.ts</code>, CI, and contributor workflow.</dd>
+          <dt>Failure mode</dt><dd>Jest owns <code>__tests__</code>, Vitest owns <code>tests</code>, and the standalone harness invokes source CLI commands in temporary directories with hardcoded loader assumptions. Each can pass or fail for reasons the others never observe.</dd>
+          <dt>Evidence or rationale</dt><dd><ul class="evidence"><li>Package scripts expose <code>test</code>, <code>test:vitest</code>, and <code>test:all</code>.</li><li>Jest and Vitest select different roots and globals.</li><li>Current Vitest output includes a deprecated pool configuration and the standalone source path fails independently.</li></ul></dd>
+          <dt>Why this matters</dt><dd>Validation complexity becomes a release risk. Engineers can fix one runner while another remains broken, and CI duration increases without increasing confidence.</dd>
+          <dt>Recommended mitigation</dt><dd>Publish a test ownership matrix, centralize shared path and environment setup, remove deprecated config, and make the aggregate command fail with a concise per-runner summary. Keep specialized runners only where they exercise a distinct contract.</dd>
+          <dt>Implementation prompt</dt><dd>Resolve the root and inspect package scripts, both configs, <code>test-all.ts</code>, test directories, CI references, and current failures. Use the differing roots, hardcoded loader, and deprecation warning as evidence. Preserve test intent, fixture isolation, supported Node versions, and focused GUI coverage. Do not merge all tests into one runner without understanding globals or replace failures with skips. Implement the smallest ownership and shared setup correction, with fallback copy of environment setup only where necessary. Cover expected runner success, unexpected collection failure, timeout, shell quoting, and temporary cleanup. Preserve project state and make aggregate output readable. Add assertions for selected file counts, exit codes, and failure summaries; include accessibility and security checks for test output and subprocess boundaries; describe rollback for config changes. Report exact commands, files, non-changes, test results, and known gaps.</dd>
+          <dt>Regression tests</dt><dd>Run each declared runner and the aggregate command, assert stable ownership and exit codes, and assert a forced failure is reported by the correct runner without hanging cleanup.</dd>
+          <dt>Additional baseline tests</dt><dd><code>npm test -- --runInBand __tests__/gui/gui-components.test.ts</code>; <code>npm run test:vitest</code>; <code>npm run test:all</code>; <code>npm run lint</code>.</dd>
+          <dt>Acceptance criteria</dt><dd>Each test script has documented ownership, deprecated configuration is removed, aggregate failures are actionable, and no runner silently omits its intended tests.</dd>
+          <dt>Confidence</dt><dd>High. The scripts and configuration boundaries are directly observable.</dd>
+        </dl>
+      </article>
+
+      <article id="issue-16">
+        <header><div class="article-kicker"><span class="issue-number">Issue 16</span><span class="kind additional">Additional</span><span class="priority p16">P16</span></div><h3>MCP wrapper generation lacks path and frontmatter containment</h3></header>
+        <dl class="issue-details">
+          <dt>Title</dt><dd>MCP wrapper generation lacks path and frontmatter containment</dd>
+          <dt>Kind</dt><dd><span class="tag">Additional</span>Generated artifact safety</dd>
+          <dt>Priority</dt><dd>P16</dd>
+          <dt>Severity</dt><dd>Medium. A crafted category or skill ID can influence the output path, and unescaped metadata can break the generated wrapper format.</dd>
+          <dt>Likelihood</dt><dd>Possible when wrapper generation receives user-controlled values or metadata from a fetched module.</dd>
+          <dt>Impacted area</dt><dd><code>cli/src/commands/mcp.ts:152-171</code>, <code>cli/src/utils/mcp-integration.ts:225-284</code>, generated skill files, and downstream MCP discovery.</dd>
+          <dt>Failure mode</dt><dd>Wrapper generation joins <code>process.cwd()</code>, <code>skills</code>, category, and skill ID without an explicit safe-slug or canonical containment check. It also interpolates values into YAML and Markdown frontmatter without escaping delimiters.</dd>
+          <dt>Evidence or rationale</dt><dd><ul class="evidence"><li>The output path is assembled from user-facing category and ID inputs.</li><li>The wrapper builder interpolates descriptive fields into generated YAML and Markdown.</li><li>Frontmatter syntax is delimiter-sensitive, so a newline or quote can alter parsed metadata.</li></ul></dd>
+          <dt>Why this matters</dt><dd>Generated artifacts can overwrite or create files outside the intended skill directory, or become syntactically misleading to an agent that consumes them.</dd>
+          <dt>Recommended mitigation</dt><dd>Validate identifiers as safe slugs or enforce canonical containment after resolution. Serialize frontmatter with a real encoder or strict escaping, and validate the generated document before writing.</dd>
+          <dt>Implementation prompt</dt><dd>Resolve the root and inspect wrapper path construction, metadata types, frontmatter generation, MCP skill discovery, and tests. Use traversal and delimiter injection fixtures as evidence. Preserve current valid names, generated headings, MCP server references, line endings, and output location. Do not sanitize by silently changing a name or hand-build a larger parser than needed. Implement the smallest containment and serialization fix, with fallback copy of safe generated content if the primary write is unavailable. Cover expected valid values, traversal, absolute paths, newlines, quotes, delimiter sequences, invalid metadata, permission errors, and retry. Preserve state and never overwrite an unrelated file. Add assertions for canonical containment, parseable frontmatter, stable output, and no secret interpolation. Include security, accessibility for readable generated documents, recovery, and rollback for generated artifacts. Report root, files, symbols, commands, tests, non-changes, and compatibility risks.</dd>
+          <dt>Regression tests</dt><dd>Assert safe IDs generate under the intended directory, traversal IDs are rejected without writes, hostile metadata remains one field, and the generated wrapper parses with the expected frontmatter.</dd>
+          <dt>Additional baseline tests</dt><dd>MCP command and integration tests; skill discovery tests; <code>npm run lint</code>; <code>npm run build</code>.</dd>
+          <dt>Acceptance criteria</dt><dd>Generated paths remain inside the skill root, metadata is serialized safely, malformed input fails before mutation, and valid wrappers remain byte-stable.</dd>
+          <dt>Confidence</dt><dd>Medium. The unsafe construction is visible, while actual reachability depends on wrapper caller inputs.</dd>
+        </dl>
+      </article>
+    </section>
+
+    <footer class="footer-note">
+      <p>Prepared from the local checkout on 2026-09-09. This document is static and self-contained. It intentionally records observed failures and testable assumptions rather than presenting stale findings from an earlier report as current facts.</p>
+    </footer>
+  </main>
+</body>
+</html>

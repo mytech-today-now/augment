@@ -2,6 +2,7 @@
  * Unit tests for extractCommandHelp utility
  */
 
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import {
@@ -12,20 +13,24 @@ import {
   generateMarkdown,
   Tool,
   HelpNode
-} from '../../../cli/src/utils/extractCommandHelp';
+} from '@cli/utils/extractCommandHelp';
 
 // Mock fs module
-jest.mock('fs');
-const mockFs = fs as jest.Mocked<typeof fs>;
+vi.mock('fs');
+const mockFs = vi.mocked(fs);
 
 // Mock child_process
-jest.mock('child_process', () => ({
-  exec: jest.fn()
+vi.mock('child_process', () => ({
+  exec: vi.fn()
 }));
 
 describe('extractCommandHelp', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe('detectTools', () => {

@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { InspectionCache } from '../inspection-cache';
+import { InspectionCache } from '@cli/utils/inspection-cache';
 import * as fs from 'fs';
 import * as path from 'path';
 import { tmpdir } from 'os';
