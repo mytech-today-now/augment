@@ -8,6 +8,7 @@ import {
   getModuleSuggestions,
   discoverModules,
   extractModuleMetadata,
+  resolveContainedPath,
   Module
 } from '../utils/module-system';
 import { moduleInspectionCache } from '../utils/inspection-cache';
@@ -685,19 +686,15 @@ async function showModuleContent(module: Module, options: ShowModuleOptions): Pr
  */
 async function showModuleFile(module: Module, filePath: string, options: ShowModuleOptions): Promise<void> {
   // Resolve file path (support both absolute and relative paths)
-  let fullPath: string;
-
-  if (path.isAbsolute(filePath)) {
-    fullPath = filePath;
-  } else {
-    // Try relative to module path
-    fullPath = path.join(module.path, filePath);
-  }
+  const attemptedPath = path.isAbsolute(filePath)
+    ? path.resolve(filePath)
+    : path.resolve(module.path, filePath);
+  const fullPath = resolveContainedPath(module.path, filePath);
 
   // Check if file exists
-  if (!fs.existsSync(fullPath)) {
+  if (!fullPath || !fs.existsSync(fullPath)) {
     console.error(chalk.red(`File not found: ${filePath}`));
-    console.log(chalk.gray(`\nSearched in: ${fullPath}`));
+    console.log(chalk.gray(`\nSearched in: ${attemptedPath}`));
     console.log(chalk.gray(`Module path: ${module.path}`));
     process.exit(1);
   }

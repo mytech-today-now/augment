@@ -56,6 +56,58 @@ export function getModulesDir(): string {
   return path.join(__dirname, '../../../augment-extensions');
 }
 
+const MODULE_NAME_SEGMENT_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+function isPathWithinRoot(rootPath: string, candidatePath: string): boolean {
+  const relativePath = path.relative(rootPath, candidatePath);
+  return relativePath.length === 0 || (!relativePath.startsWith('..') && !path.isAbsolute(relativePath));
+}
+
+function resolveRealPath(candidatePath: string): string | null {
+  try {
+    return fs.realpathSync(candidatePath);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolve `targetPath` against `rootPath`, canonicalize it, and return the
+ * canonical path only when it stays inside `rootPath`.
+ */
+export function resolveContainedPath(rootPath: string, targetPath: string): string | null {
+  const rootRealPath = resolveRealPath(rootPath);
+  if (!rootRealPath) {
+    return null;
+  }
+
+  const candidateAbs = path.isAbsolute(targetPath)
+    ? path.resolve(targetPath)
+    : path.resolve(rootRealPath, targetPath);
+  const candidateRealPath = resolveRealPath(candidateAbs);
+
+  if (!candidateRealPath) {
+    return null;
+  }
+
+  return isPathWithinRoot(rootRealPath, candidateRealPath) ? candidateRealPath : null;
+}
+
+function isSafeModuleName(moduleName: string): boolean {
+  if (moduleName.length === 0 || moduleName.includes('\\') || path.isAbsolute(moduleName)) {
+    return false;
+  }
+
+  return moduleName.split('/').every((segment) => {
+    return (
+      segment.length > 0 &&
+      segment !== '.' &&
+      segment !== '..' &&
+      MODULE_NAME_SEGMENT_PATTERN.test(segment)
+    );
+  });
+}
+
 /**
  * Validate module.json structure
  */
@@ -227,6 +279,15 @@ export function satisfiesVersionRange(version: string, range: string): boolean {
  * Load module from path
  */
 export function loadModule(modulePath: string): Module | null {
+  const modulesDir = getModulesDir();
+  if (!path.isAbsolute(modulePath) || isPathWithinRoot(modulesDir, modulePath)) {
+    const containedPath = resolveContainedPath(modulesDir, modulePath);
+    if (!containedPath) {
+      return null;
+    }
+    modulePath = containedPath;
+  }
+
   const moduleJsonPath = path.join(modulePath, 'module.json');
 
   if (!fs.existsSync(moduleJsonPath)) {
@@ -785,10 +846,15 @@ export function findModule(moduleName: string): Module | null {
 
   const modulesDir = getModulesDir();
 
-  // If moduleName includes category (e.g., "coding-standards/typescript")
-  if (normalizedName.includes('/')) {
-    const modulePath = path.join(modulesDir, normalizedName);
-    return loadModule(modulePath);
+  // If moduleName looks path-like (nested ID, absolute path, or separator usage),
+  // resolve it through the containment gate instead of falling back to discovery.
+  if (normalizedName.includes('/') || normalizedName.includes('\\') || path.isAbsolute(normalizedName)) {
+    if (!isSafeModuleName(normalizedName)) {
+      return null;
+    }
+
+    const modulePath = resolveContainedPath(modulesDir, normalizedName);
+    return modulePath ? loadModule(modulePath) : null;
   }
 
   // Search discovered modules for exact top-level, short-name, or category/module matches

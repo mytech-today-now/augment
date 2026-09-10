@@ -10,6 +10,7 @@ import { execSync } from 'child_process';
 
 const TEST_MODULE_PATH = path.join(__dirname, '../../../../augment-extensions/test-module');
 const TEST_COMPLETED_PROJECT_PATH = path.join(__dirname, '__fixtures__', 'completed-test-project');
+const TEST_OUTSIDE_FILE_PATH = path.join(__dirname, '../../../../outside.txt');
 const CLI_PATH = path.join(__dirname, '../../../dist/cli.js');
 
 function runCli(command: string, cwd: string = process.cwd()): { stdout: string; stderr: string; status: number } {
@@ -67,6 +68,8 @@ describe('Module Inspection Integration Tests', () => {
       );
     }
 
+    fs.writeFileSync(TEST_OUTSIDE_FILE_PATH, 'TOP-SECRET-OUTSIDE-CONTENT\n', 'utf-8');
+
     fs.mkdirSync(path.join(TEST_COMPLETED_PROJECT_PATH, '.beads'), { recursive: true });
     fs.mkdirSync(path.join(TEST_COMPLETED_PROJECT_PATH, 'scripts'), { recursive: true });
     fs.writeFileSync(
@@ -101,6 +104,10 @@ describe('Module Inspection Integration Tests', () => {
 
     if (fs.existsSync(TEST_COMPLETED_PROJECT_PATH)) {
       fs.rmSync(TEST_COMPLETED_PROJECT_PATH, { recursive: true, force: true });
+    }
+
+    if (fs.existsSync(TEST_OUTSIDE_FILE_PATH)) {
+      fs.rmSync(TEST_OUTSIDE_FILE_PATH, { force: true });
     }
   });
 
@@ -217,6 +224,15 @@ describe('Module Inspection Integration Tests', () => {
       expect(status).toBe(1);
       expect(output).toContain('File not found: non-existent-file.md');
       expect(output).toContain('Module path:');
+    });
+
+    it('should not read files outside the module root through traversal', () => {
+      const { stdout, stderr, status } = runCli(`node ${CLI_PATH} show module test-module ../../outside.txt`);
+      const output = `${stdout}${stderr}`;
+
+      expect(status).toBe(1);
+      expect(output).toContain('File not found: ../../outside.txt');
+      expect(output).not.toContain('TOP-SECRET-OUTSIDE-CONTENT');
     });
   });
 });
